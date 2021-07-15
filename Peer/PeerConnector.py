@@ -27,7 +27,7 @@ class PeerConnector:
         if x is not None:
             parent_id = int(x.group(1))
             parent_port = int(x.group(2))
-            parent_host = MANAGER_PORT
+            parent_host = MANAGER_HOST
             return Address(parent_host, parent_port, parent_id)
         else:
             raise Exception("failed")

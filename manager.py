@@ -18,7 +18,8 @@ while True:
     print('waiting for client...')
     client, address = server.accept()
     print('connected with', address)
-    respond = client.recv(1024).decode('ascii')
+    respond = client.recv(BUFFER_SIZE).decode('ascii')
+    print('respond:', respond)
     # respond:"$IDnew REQUESTS FOR CONNECTING TO NETWORK ON PORT $Port"
     respond = respond.split()
 

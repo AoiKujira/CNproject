@@ -27,5 +27,5 @@ class Peer:
         print(self.address)
 
 
-if __name__ == '__main':
+if __name__ == '__main__':
     peer = Peer()

@@ -3,7 +3,7 @@ MANAGER_HOST = 'localhost'
 MANAGER_PORT = 62432
 
 # Socket
-ENCODING = 'ASCII'
+ENCODING = 'ascii'
 BUFFER_SIZE = 1024
 
 # Ports

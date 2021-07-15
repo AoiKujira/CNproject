@@ -1,16 +1,13 @@
 import socket
-import threading
-
-HOST = '127.0.0.1'
-MANAGER_PORT = 13391
+from Configuration import *
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind((HOST, MANAGER_PORT))
+server.bind((MANAGER_HOST, MANAGER_PORT))
 server.listen()
 tree = []
 nodes = {} #(id, port)
 
-def find_par():
+def find_parent():
     l = len(tree)
     if not l:
         return -1, -1
@@ -30,7 +27,7 @@ while True:
             respond[-1] in nodes.values() :
         client.send('ID and/or port is taken, try again'.encode("ascii"))
         respond = client.recv(1024).decode('ascii').split()
-    par = find_par()
+    par = find_parent()
     client.send(f'CONNECT TO {par[0]} WITH PORT {par[1]}'.encode("ascii"))
     tree.append((respond[0], respond[-1]))
     nodes[respond[0]] = respond[-1]

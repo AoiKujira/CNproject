@@ -1,4 +1,11 @@
+# Manager
 MANAGER_HOST = 'localhost'
 MANAGER_PORT = 62432
+
+# Socket
 ENCODING = 'ASCII'
 BUFFER_SIZE = 1024
+
+# Ports
+PORT_BASE = 60000
+PORTS_LIMIT = 60100

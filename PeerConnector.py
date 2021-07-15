@@ -4,7 +4,7 @@ from Configuration import *
 from Address import Address
 
 request_message = '{} {}'
-success_response = 'CONNECT TO (\\d+) WITH PORT (\\d+)'
+success_response = 'CONNECT TO (\\d+|-\\d+) WITH PORT (\\d+|-\\d+)'
 
 
 class PeerConnector:
@@ -14,14 +14,16 @@ class PeerConnector:
 
     def send_connection_request(self, address: Address) -> str:
         request = request_message.format(str(address.id), str(address.port))
-        print(f'sending request {request}')
+        print(f'sending request: {request}')
         self.socket.send(request.encode(ENCODING))
         return self.socket.recv(BUFFER_SIZE).decode(ENCODING)
 
     def handle(self, address: Address) -> Address:
         response = self.send_connection_request(address)
-        x = re.match(response, success_response)
+        print(f'received response: {response}')
+        x = re.match(success_response, response)
         if x is not None:
+            print("matched")
             parent_id = int(x.group(1))
             parent_port = int(x.group(2))
             parent_host = MANAGER_HOST

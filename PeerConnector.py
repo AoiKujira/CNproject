@@ -13,7 +13,7 @@ class PeerConnector:
         self.socket = so.socket(so.AF_INET, so.SOCK_STREAM)
 
     def send_connection_request(self, address: Address) -> str:
-        request = request_message.format(str(address.id), str(address.port)).encode(ENCODING)
+        request = request_message.format(str(address.id), str(address.port))
         print(f'sending request {request}')
         self.socket.send(request.encode(ENCODING))
         return self.socket.recv(BUFFER_SIZE).decode(ENCODING)

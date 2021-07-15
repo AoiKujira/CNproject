@@ -1,7 +1,7 @@
 from Util import *
 from Address import Address
 from Configuration import *
-from Peer.PeerConnector import PeerConnector
+from PeerConnector import PeerConnector
 
 
 class Peer:

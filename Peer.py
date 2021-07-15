@@ -2,13 +2,12 @@ from Util import *
 from Address import Address
 from Configuration import *
 from PeerConnector import PeerConnector
-from Packet import Packet
 import time
 import socket as so
 import threading
 from PacketType import PacketType
 from Child import Child
-from Messenger import *
+from Util import decode_packet, encode_packet
 
 
 class Peer:

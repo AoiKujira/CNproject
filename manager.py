@@ -25,12 +25,10 @@ while True:
     respond = respond.split()
     print('respond:', respond)
 
-    print(respond[0])
-    print(respond[1])
-
-    while respond[0] in nodes.keys() or respond[1] in nodes.values():
+    if respond[0] in nodes.keys() or respond[1] in nodes.values():
         client.send('ID and/or port is taken, try again'.encode("ascii"))
-        respond = client.recv(1024).decode('ascii').split()
+        continue
+
     par = find_parent()
     client.send(f'CONNECT TO {par[0]} WITH PORT {par[1]}'.encode("ascii"))
     tree.append((respond[0], respond[1]))

@@ -1,10 +1,12 @@
 import random
-from Configuration import *
+import Configuration
 
 
 def get_random_port() -> int:
-    return random.randint(PORT_BASE, PORTS_LIMIT)
+    Configuration.PORT_BASE += 1
+    return Configuration.PORT_BASE
 
 
 def get_random_id() -> int:
-    return random.randint(ID_BASE, ID_LIMIT)
+    Configuration.ID_BASE += 1
+    return Configuration.ID_BASE

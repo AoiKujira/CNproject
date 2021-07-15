@@ -23,7 +23,6 @@ class PeerConnector:
         print(f'received response: {response}')
         x = re.match(success_response, response)
         if x is not None:
-            print("matched")
             parent_id = int(x.group(1))
             parent_port = int(x.group(2))
             parent_host = MANAGER_HOST

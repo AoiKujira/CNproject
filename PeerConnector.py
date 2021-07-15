@@ -3,7 +3,7 @@ import re
 from Configuration import *
 from Address import Address
 
-request_message = '{identifier} {port}'
+request_message = '{} {}'
 success_response = 'CONNECT TO (\\d+) WITH PORT (\\d+)'
 
 
@@ -13,7 +13,8 @@ class PeerConnector:
         self.socket = so.socket(so.AF_INET, so.SOCK_STREAM)
 
     def send_connection_request(self, address: Address) -> str:
-        request = request_message.encode(str(address.id), str(address.port))
+        request = request_message.format(str(address.id), str(address.port)).encode(ENCODING)
+        print(f'sending request {request}')
         self.socket.send(request.encode(ENCODING))
         return self.socket.recv(BUFFER_SIZE).decode(ENCODING)
 

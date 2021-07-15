@@ -32,11 +32,9 @@ class Peer:
                 try:
                     self.address, self.parent_address = self.connect_to_network(x[2], x[1])
                     self.connect_to_parent()
-                    print('yeay')
                 except Exception as e:
                     print(e)
                     exit(0)
-                print('yeay')
                 threading.Thread(target=self.listen).start()
                 continue
             x = re.match(connect_command, command)

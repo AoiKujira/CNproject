@@ -45,9 +45,14 @@ def parse_advertise_data(data: str):
 
 def make_parent_advertise_packet(source_id: int, parent_id: int, subtree_child_id) -> Packet:
     return Packet(packet_type=PacketType.PARENT_ADVERTISE, source_id=source_id, destination_id=parent_id,
-                    data=str(subtree_child_id))
+                  data=str(subtree_child_id))
 
 
 def make_routing_response_packet(source_id: int, destination_id: int) -> Packet:
     return Packet(packet_type=PacketType.ROUTING_RESPONSE, source_id=source_id, destination_id=destination_id,
-                    data=str(source_id))
+                  data=str(source_id))
+
+
+def make_destination_not_found_message_packet(source_id: int, destination_id: int, searched_id: int) -> Packet:
+    return Packet(packet_type=PacketType.DESTINATION_NOT_FOUND_MESSAGE, source_id=source_id,
+                  destination_id=destination_id, data='DESTINATION {} NOT FOUND'.format(searched_id))

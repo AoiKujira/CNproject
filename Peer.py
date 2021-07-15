@@ -8,7 +8,6 @@ import time
 import socket as so
 import threading
 from PacketType import PacketType
-from Child import Child
 from Util import decode_packet, encode_packet
 import re
 from Node import *
@@ -30,7 +29,7 @@ class Peer:
             x = re.match(connect_command, command)
             if x is not None:
                 try:
-                    self.address, self.parent_address = self.connect_to_network(x[2], x[1])
+                    self.address, self.parent_address = self.connect_to_network(int(x[2]), int(x[1]))
                     self.connect_to_parent()
                 except Exception as e:
                     print(e)

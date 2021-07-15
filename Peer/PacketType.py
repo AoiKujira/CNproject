@@ -1,0 +1,11 @@
+from enum import Enum
+
+
+class PacketType(Enum):
+    MESSAGE = 0
+    ROUTING_REQUEST = 10
+    ROUTING_RESPONSE = 11
+    PARENT_ADVERTISE = 20
+    ADVERTISE = 21
+    DESTINATION_NOT_FOUND_MESSAGE = 31
+    CONNECTION_REQUEST = 41

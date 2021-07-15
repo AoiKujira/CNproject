@@ -1,4 +1,4 @@
-from Peer.PacketType import PacketType
+from PacketType import PacketType
 
 
 class Packet:

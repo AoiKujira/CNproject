@@ -64,7 +64,7 @@ class Peer:
         if packet.type == PacketType.MESSAGE:
             pass
         elif packet.type == PacketType.ROUTING_REQUEST:
-            self.handle_routing_request_packet(packet)  # todo: remove
+            self.handle_routing_request_packet(packet)
         elif packet.type == PacketType.ROUTING_RESPONSE:
             pass
         elif packet.type == PacketType.PARENT_ADVERTISE:

@@ -2,6 +2,7 @@ from Util import *
 from Address import Address
 from Configuration import *
 from PeerConnector import PeerConnector
+import time
 
 
 class Peer:
@@ -20,6 +21,7 @@ class Peer:
                 return self.try_once()
             except Exception as e:
                 print(e)
+            time.sleep(0.5)
 
     def __init__(self):
         self.parent_address = None

@@ -8,27 +8,38 @@ import threading
 from PacketType import PacketType
 from Child import Child
 from Util import decode_packet, encode_packet
+import re
 
+connect_command = 'CONNECT AS (\\d+|-\\d+) ON PORT (\\d+|-\\d+)'
 
 class Peer:
 
     def __init__(self):
-        self.address, self.parent_address = self.connect_to_network()
+        self.address = None
+        self.parent_address = None
         self.parent_socket = None
-        self.connect_to_parent()
-
-    def connect_to_network(self) -> (Address, Address):
+        threading.Thread(target=self.terminal).run()
+        
+    def terminal(self):
         while True:
-            try:
-                return self.try_once()
-            except Exception as e:
-                print(e)
-            time.sleep(0.5)
+            command = input("$Enter command:")
+            x = re.match(connect_command, command)
+            if x is not None:
+                try:
+                    self.address, self.parent_address = self.connect_to_network(x[2], x[1])
+                    self.connect_to_parent()
+                    print('yeay')
+                except Exception as e:
+                    print(e)
+                    exit(0)
+                print('yeay')
+                threading.Thread(target=self.listen).start()
+                continue
+            x = re.match(connect_command, command)
+            if x is not None:
+                pass
 
-    @staticmethod
-    def try_once() -> (Address, Address):
-        port = get_random_port()
-        identifier = get_random_id()
+    def connect_to_network(self, port, identifier):
         address = Address(MANAGER_HOST, port, identifier)
         peer_connector = PeerConnector()
         return address, peer_connector.get_id(address)
@@ -44,6 +55,8 @@ class Peer:
             threading.Thread(target=self.listen_to_child, args=(child,)).run()
 
     def connect_to_parent(self):
+        if self.parent_address.port == -1:
+            return
         self.parent_socket = so.socket(so.AF_INET, so.SOCK_STREAM)
         self.parent_socket.connect((self.parent_address.host, self.parent_address.port))
 

@@ -11,7 +11,7 @@ nodes = {}  # (id, port)
 def find_parent():
     l = len(tree)
     if not l:
-        return -1, -1
+        return NO_PARENT_ID, NO_PARENT_PORT
     return tree[(l - 1) // 2]
 
 

@@ -6,16 +6,19 @@ import time
 import socket as so
 import threading
 from PacketType import PacketType
-from Child import Child
-from Util import decode_packet, encode_packet
+from Node import Node
+from Node import Child
+from Node import Parent
+from Util import decode_packet
 
 
 class Peer:
 
     def __init__(self):
-        self.address, self.parent_address = self.connect_to_network()
-        self.parent_socket = None
+        self.address, parent_address = self.connect_to_network()
+        self.parent = Parent(so.socket(so.AF_INET, so.SOCK_STREAM), parent_address)
         self.connect_to_parent()
+        self.children = []
 
     def connect_to_network(self) -> (Address, Address):
         while True:
@@ -41,11 +44,11 @@ class Peer:
         while True:
             client, address = server.accept()
             child = Child(client)
-            threading.Thread(target=self.listen_to_child, args=(child,)).run()
+            self.children.append(child)
+            threading.Thread(target=self.listen_to_child, args=(child,)).start()
 
     def connect_to_parent(self):
-        self.parent_socket = so.socket(so.AF_INET, so.SOCK_STREAM)
-        self.parent_socket.connect((self.parent_address.host, self.parent_address.port))
+        self.parent.socket.connect((self.parent.address.host, self.parent.address.port))
 
     def advertise_to_parent(self):
         pass
@@ -54,18 +57,18 @@ class Peer:
         while True:
             s = child.socket.recv(BUFFER_SIZE).decode(ENCODING)
             packet = decode_packet(s)
-            self.handle_message(packet)
+            self.handle_message(child, packet)
         pass
 
-    def handle_message(self, packet: Packet):
+    def handle_message(self, child: Child, packet: Packet):
         if packet.type == PacketType.MESSAGE:
             pass
         elif packet.type == PacketType.ROUTING_REQUEST:
-            pass
+            self.handle_routing_request_packet(packet)  # todo: remove
         elif packet.type == PacketType.ROUTING_RESPONSE:
             pass
         elif packet.type == PacketType.PARENT_ADVERTISE:
-            pass
+            self.handle_parent_advertise_packet(child, packet)
         elif packet.type == PacketType.ADVERTISE:
             pass
         elif packet.type == PacketType.DESTINATION_NOT_FOUND_MESSAGE:
@@ -75,10 +78,38 @@ class Peer:
         else:
             raise Exception("NOT SUPPORTED PACKET TYPE")
 
-    def send_message_to_socket(self, socket: so.socket, packet: Packet) -> None:
-        s = encode_packet(packet)
-        socket.send(s.encode(ENCODING))
-        pass
+    def handle_parent_advertise_packet(self, child: Child, packet: Packet):
+        subtree_child_id = parse_advertise_data(packet.data)
+        child.add_sub_node_if_not_exists(subtree_child_id)
+        if self.parent.address.id != NO_PARENT_ID:
+            send_message_to_socket(
+                self.parent.socket,
+                make_parent_advertise_packet(
+                    self.address.id,
+                    self.parent.address.id,
+                    subtree_child_id
+                )
+            )
+
+    def handle_routing_request_packet(self, packet: Packet):
+        if packet.destination_id == self.address.id:
+            self.handle_routing_message_to_self(packet)
+            return
+
+        node = self.get_routing_request_destination_node(packet)
+        send_message_to_socket(node.socket, packet)
+
+    def get_routing_request_destination_node(self, packet: Packet) -> Node:
+        for ch in self.children:
+            if packet.destination_id in ch.sub_tree_child_ids:
+                return ch
+
+        return self.parent
+
+    def handle_routing_message_to_self(self, packet: Packet):
+        response_packet = make_routing_response_packet(self.address.id, packet.source_id)
+        node = self.get_routing_request_destination_node(packet)
+        send_message_to_socket(node.socket, response_packet)
 
 
 if __name__ == '__main__':

@@ -9,6 +9,7 @@ from Util import *
 
 connect_command = 'CONNECT AS (\\d+|-\\d+) ON PORT (\\d+|-\\d+)'
 
+
 class Peer:
 
     def __init__(self):
@@ -17,7 +18,7 @@ class Peer:
         self.parent = None
         self.children = []
         threading.Thread(target=self.terminal).run()
-        
+
     def terminal(self):
         while True:
             command = input("$Enter command:")

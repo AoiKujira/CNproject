@@ -1,3 +1,4 @@
+from abc import get_cache_token
 import re
 import threading
 from typing import Any, Optional, Union
@@ -9,6 +10,9 @@ from Util import *
 
 connect_command = 'CONNECT AS (\\d+|-\\d+) ON PORT (\\d+|-\\d+)'
 show_known_command = 'SHOW KNOWN CLIENTS'
+route_command = 'ROUTE (\\d+|-\\d+)'
+advertise_command  = 'Advertise (\\d+|-\\d+)'
+start_chat_command = 'START CHAT ([\\w\\d._-]+): [.]*'
 
 class Peer:
 
@@ -36,12 +40,44 @@ class Peer:
             x = re.match(show_known_command, command)
             if x is not None:
                 for known_address in self.known_addresses:
-                    print(known_address.identifier)
+                    print(known_address.id)
                 continue
 
-            x = re.match(show_known_command, command)
+            x = re.match(route_command, command)
             if x is not None:
                 pass
+
+            x = re.match(advertise_command, command)
+            if x is not None:
+                pass
+
+            x = re.match(start_chat_command, command)
+            if x is not None:
+                self.chat_name = x[1]
+                identifiers = self.format_start_chat_identidires(command.split()[3:])
+                #REQUESTS FOR STARTING CHAT WITH CHAT_NAMEA: IDA, ID1, ID2, ID3...
+                
+                pass
+
+            x = re.match(advertise_command, command)
+            if x is not None:
+                pass
+
+    def format_start_chat_identidires(self, ids):
+        ret = []
+        for i in ids:
+            if i[-1] == ',':
+                i = i[:-2]
+            i = int(i)
+            if i in self.get_known_ids() and i not in ret and i != self.address.id:
+                ret.append(i)
+        return ret
+
+    def get_known_ids(self):
+        ret = []
+        for i in self.known_addresses:
+            ret.append(i.id)
+        return ret
 
     def send_connection_request_to_parent(self):
         if self.parent_address.id == NO_PARENT_ID:

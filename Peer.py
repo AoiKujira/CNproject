@@ -58,7 +58,15 @@ class Peer:
 
             x = re.match(advertise_command, command)
             if x is not None:
-                pass
+                if int(x[1]) in self.get_known_ids():
+                    packet = Packet(packet_type=PacketType.ADVERTISE,
+                                    source_id=self.address.id,
+                                    destination_id=int(x[1]),
+                                    data=str(self.address.id))
+                    self.handle_advertise_packet(packet)
+                else:
+                    print('Unknown id')
+                continue
 
             x = re.match(start_chat_command, command)
             if x is not None:

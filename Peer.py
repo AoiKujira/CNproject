@@ -18,7 +18,7 @@ start_chat_command = 'START CHAT ([\\w\\d._-]+): [.]*'
 class Peer:
 
     def __init__(self):
-        self.known_addresses = []
+        self.known_ids = []
         self.address = None
         self.parent_address = None
         self.parent_socket = None
@@ -48,8 +48,8 @@ class Peer:
 
             x = re.match(show_known_command, command)
             if x is not None:
-                for known_address in self.known_addresses:
-                    print(known_address.id)
+                for known_id in self.known_ids:
+                    print(known_id)
                 continue
 
             x = re.match(route_command, command)
@@ -58,7 +58,7 @@ class Peer:
 
             x = re.match(advertise_command, command)
             if x is not None:
-                if int(x[1]) in self.get_known_ids():
+                if int(x[1]) in self.known_ids:
                     packet = Packet(packet_type=PacketType.ADVERTISE,
                                     source_id=self.address.id,
                                     destination_id=int(x[1]),
@@ -86,14 +86,8 @@ class Peer:
             if i[-1] == ',':
                 i = i[:-2]
             i = int(i)
-            if i in self.get_known_ids() and i not in ret and i != self.address.id:
+            if i in self.known_ids and i not in ret and i != self.address.id:
                 ret.append(i)
-        return ret
-
-    def get_known_ids(self):
-        ret = []
-        for i in self.known_addresses:
-            ret.append(i.id)
         return ret
 
     def connect_to_parent(self):

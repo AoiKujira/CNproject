@@ -23,7 +23,8 @@ def get_random_id() -> int:
 def decode_packet(message: str):
     try:
         message = message.split(maxsplit=3)
-        return Packet(packet_type=PacketType(int(message[0])), source_id=int(message[1]), destination_id=int(message[2]),
+        return Packet(packet_type=PacketType(int(message[0])), source_id=int(message[1]),
+                      destination_id=int(message[2]),
                       data=str(message[3]))
     except Exception as e:
         print(e)
@@ -35,6 +36,10 @@ def encode_packet(packet: Packet):
               + str(packet.destination_id) + "\n" \
               + str(packet.data)
     return message
+
+
+def send_packet_to_address(address: Address, packet: Packet):
+    send_packet_to_addresses([address], packet)
 
 
 def send_packet_to_addresses(addresses: List[Address], packet: Packet):

@@ -103,7 +103,7 @@ class Peer:
 
     def send_connection_request_to_parent(self):
         packet = make_connection_request_packet(self.address.id, self.parent_address.id, self.address.port)
-        send_packet_to_addresses(self.parent_address, packet)
+        send_packet_to_address(self.parent_address, packet)
 
     def connect_to_network(self, port: int, identifier: int):
         address = Address(MANAGER_HOST, port, identifier)

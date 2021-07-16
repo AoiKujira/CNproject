@@ -8,11 +8,12 @@ from PeerConnector import PeerConnector
 from Util import *
 
 connect_command = 'CONNECT AS (\\d+|-\\d+) ON PORT (\\d+|-\\d+)'
-
+show_known_command = 'SHOW KNOWN CLIENTS'
 
 class Peer:
 
     def __init__(self):
+        self.known_addresses = []
         self.address = None
         self.parent_address = None
         self.parent_socket = None
@@ -31,7 +32,14 @@ class Peer:
                     exit(0)
                 threading.Thread(target=self.listen).start()
                 continue
-            x = re.match(connect_command, command)
+
+            x = re.match(show_known_command, command)
+            if x is not None:
+                for known_address in self.known_addresses:
+                    print(known_address.identifier)
+                continue
+
+            x = re.match(show_known_command, command)
             if x is not None:
                 pass
 

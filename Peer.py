@@ -83,6 +83,11 @@ class Peer:
             ret.append(i.id)
         return ret
 
+    def connect_to_parent(self):
+        if self.parent_address.id == NO_PARENT_ID:
+            return
+        self.send_connection_request_to_parent()
+
     def send_connection_request_to_parent(self):
         packet = make_connection_request_packet(self.address.id, self.parent_address.id, self.address.port)
         send_packet_to_address(self.parent_address, packet)

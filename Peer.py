@@ -294,7 +294,6 @@ class Peer:
     def send_packet_to_addresses(self, addresses: List[Address], packet: Packet):
         for address in addresses:
             socket = so.socket(so.AF_INET, type=so.SOCK_STREAM)
-            socket.bind((self.address.host, self.address.port))
             print(f'sending packet {encode_packet(packet)} to {address.id} on port {address.port}')
             socket.connect((address.host, address.port))
             m = encode_packet(packet)

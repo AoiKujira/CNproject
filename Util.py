@@ -1,10 +1,12 @@
 import random
+import socket as so
 import Configuration
 import Packet
 import socket as so
 from Configuration import ENCODING
 from Packet import Packet
 from PacketType import PacketType
+from Address import Address
 
 
 def get_random_port() -> int:
@@ -33,10 +35,12 @@ def encode_packet(packet: Packet):
     return message
 
 
-def send_message_to_socket(socket: so.socket, packet: Packet) -> None:
-    s = encode_packet(packet)
-    socket.send(s.encode(ENCODING))
-    pass
+def send_packet_to_address(address: Address, packet: Packet):
+    socket = so.socket(so.AF_INET, type=so.SOCK_DGRAM)  # use udp socket for request response style
+    socket.connect((address.host, address.port))
+    m = encode_packet(packet)
+    socket.send(m.encode(ENCODING))
+    socket.close()
 
 
 def make_connection_request_packet(source_id: int, destination_id: int, port: int):

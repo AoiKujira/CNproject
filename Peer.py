@@ -53,14 +53,14 @@ class Peer:
 
             x = re.match(route_command, command)
             if x is not None:
-                if int(x[1]) in self.known_ids:
-                    packet = Packet(packet_type=PacketType.ADVERTISE,
-                                    source_id=self.address.id,
-                                    destination_id=int(x[1]),
-                                    data=None)
-                    self.handle_routing_request_packet(packet)
-                else:
-                    print('Unknown id')
+                # if int(x[1]) in self.known_ids:
+                packet = Packet(packet_type=PacketType.ROUTING_REQUEST,
+                                source_id=self.address.id,
+                                destination_id=int(x[1]),
+                                data=None)
+                self.handle_routing_request_packet(packet)
+                # else:
+                #     print('Unknown id')
                 continue
 
             x = re.match(advertise_command, command)
@@ -201,48 +201,56 @@ class Peer:
         send_packet_to_addresses(addresses, packet)
 
     def get_routing_request_destination_for_packet(self, packet: Packet) -> Union[List[Address], None]:
+        print(" finding destination to ", packet.destination_id)
         neighbor_node_id = packet.source_id
         if packet.destination_id == -1:
             addresses = [child.address for child in self.children if child.address.id != neighbor_node_id]
             if self.parent_address.id != neighbor_node_id:
                 addresses.append(self.parent_address)
+            print("to", [address.id for address in addresses])
             return addresses
 
         for child in self.children:
             if packet.destination_id in child.sub_tree_child_ids:
-                return list(child.address)
+                print("to", child.address.id)
+                return [child.address]
 
         if self.parent_address.id != NO_PARENT_ID:
-            return list(self.parent_address)
+            print("to", self.parent_address.id)
+            return [self.parent_address]
 
         return None
 
     def handle_routing_request_to_self(self, packet: Packet):
         response_packet = make_routing_response_packet(self.address.id, packet.source_id)
-        addresses = self.get_routing_request_destination_for_packet(packet)
+        addresses = self.get_routing_request_destination_for_packet(response_packet)
         send_packet_to_addresses(addresses, response_packet)
 
     def handle_routing_response_packet(self, packet: Packet):
+        assert packet.destination_id != -1
         if packet.destination_id == self.address.id:
             self.handle_routing_response_to_self(packet)
             return
+        self.append_current_node_to_routing_response_message(packet)
+        addresses = self.get_routing_request_destination_for_packet(packet)
+        send_packet_to_addresses(addresses, packet)
 
+    def handle_routing_response_to_self(self, packet: Packet):
+        self.append_current_node_to_routing_response_message(packet)
+        print(packet.data)
+
+    def append_current_node_to_routing_response_message(self, packet: Packet):
         m = re.search('(-\\d+|\\d+).*', packet.data)
         assert m is not None
-        last_id = m.group(1)
+        last_id = int(m.group(1))
 
         if last_id == self.parent_address.id:
             packet.data = f'{self.address.id}<-{packet.data}'
         else:
             packet.data = f'{self.address.id}->{packet.data}'
 
-        addresses = self.get_routing_request_destination_for_packet(packet)
-        send_packet_to_addresses(addresses, packet)
-
-    def handle_routing_response_to_self(self, packet: Packet):
-        print(packet.data)
-
     def handle_destination_not_found_message(self, packet: Packet):
+        assert packet.destination_id != -1
         addresses = self.get_routing_request_destination_for_packet(packet)
         send_packet_to_addresses(addresses, packet)
 
@@ -259,7 +267,7 @@ class Peer:
     def advertise_to_parent(self, child: Child):
         packet = make_parent_advertise_packet(self.address.id, self.parent_address.id, child.address.id)
         if self.parent_address.id != NO_PARENT_ID:
-            send_packet_to_addresses(self.parent_address, packet)
+            send_packet_to_address(self.parent_address, packet)
 
 
 if __name__ == '__main__':

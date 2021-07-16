@@ -45,6 +45,7 @@ def send_packet_to_address(address: Address, packet: Packet):
 def send_packet_to_addresses(addresses: List[Address], packet: Packet):
     for address in addresses:
         socket = so.socket(so.AF_INET, type=so.SOCK_STREAM)  # use udp socket for request response style
+        print(f'sending packet {encode_packet(packet)} to {address.id} on port {address.port}')
         socket.connect((address.host, address.port))
         m = encode_packet(packet)
         socket.send(m.encode(ENCODING))

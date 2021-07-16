@@ -156,6 +156,7 @@ class Peer:
             return
 
         addresses = self.get_routing_request_destination_for_packet(packet)
+        packet.source_id = self.address.id
         send_packet_to_addresses(addresses, packet)
 
     def handle_advertise_to_self(self, packet: Packet):

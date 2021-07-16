@@ -1,5 +1,6 @@
 import random
 import socket as so
+from typing import List
 import Configuration
 import Packet
 import socket as so
@@ -36,12 +37,13 @@ def encode_packet(packet: Packet):
     return message
 
 
-def send_packet_to_address(address: Address, packet: Packet):
-    socket = so.socket(so.AF_INET, type=so.SOCK_STREAM)  # use udp socket for request response style
-    socket.connect((address.host, address.port))
-    m = encode_packet(packet)
-    socket.send(m.encode(ENCODING))
-    socket.close()
+def send_packet_to_addresses(addresses: List[Address], packet: Packet):
+    for address in addresses:
+        socket = so.socket(so.AF_INET, type=so.SOCK_STREAM)  # use udp socket for request response style
+        socket.connect((address.host, address.port))
+        m = encode_packet(packet)
+        socket.send(m.encode(ENCODING))
+        socket.close()
 
 
 def make_connection_request_packet(source_id: int, destination_id: int, port: int):

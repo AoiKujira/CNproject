@@ -10,6 +10,7 @@ from Util import decode_packet
 
 connect_command = 'CONNECT AS (\\d+|-\\d+) ON PORT (\\d+|-\\d+)'
 
+
 class Peer:
 
     def __init__(self):
@@ -17,7 +18,7 @@ class Peer:
         self.parent_address = None
         self.parent_socket = None
         threading.Thread(target=self.terminal).run()
-        
+
     def terminal(self):
         while True:
             command = input("$Enter command:")
@@ -152,6 +153,16 @@ class Peer:
     def handle_destination_not_found_message(self, packet: Packet):
         forward_node = self.get_routing_request_destination_node(packet)
         send_message_to_socket(forward_node.socket, packet)
+
+    def handle_connection_request_packet(self, packet: Packet):
+        child_host = MANAGER_HOST
+        child_port = int(packet.data)
+        socket = so.socket(so.AF_INET, so.SOCK_STREAM)
+        socket.bind((self.address.host, self.address.port))
+        socket.connect((child_host, child_port))
+        child = Child(NodeType.CHILD, socket)
+        self.children.append(child)
+        threading.Thread(target=self.listen_to_node, args=(child,))
 
 
 if __name__ == '__main__':

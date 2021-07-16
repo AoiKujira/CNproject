@@ -54,7 +54,15 @@ class Peer:
 
             x = re.match(route_command, command)
             if x is not None:
-                pass
+                if int(x[1]) in self.known_ids:
+                    packet = Packet(packet_type=PacketType.ADVERTISE,
+                                    source_id=self.address.id,
+                                    destination_id=int(x[1]),
+                                    data=None)
+                    self.handle_routing_request_packet(packet)
+                else:
+                    print('Unknown id')
+                continue
 
             x = re.match(advertise_command, command)
             if x is not None:
@@ -62,7 +70,7 @@ class Peer:
                     packet = Packet(packet_type=PacketType.ADVERTISE,
                                     source_id=self.address.id,
                                     destination_id=int(x[1]),
-                                    data=None)
+                                    data=str(self.address.id))
                     self.handle_advertise_packet(packet)
                 else:
                     print('Unknown id')
@@ -140,8 +148,8 @@ class Peer:
             raise Exception("NOT SUPPORTED PACKET TYPE")
 
     def handle_advertise_packet(self, packet: Packet):
-        if self.address.id != packet.source_id:
-            self.known_ids.append(packet.source_id)
+        if self.address.id != int(packet.data):
+            self.known_ids.append(int(packet.data))
 
         if packet.destination_id == self.address.id:
             self.handle_advertise_to_self(packet)

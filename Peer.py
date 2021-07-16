@@ -6,7 +6,6 @@ from Configuration import *
 from Node import *
 from PeerConnector import PeerConnector
 from Util import *
-from Util import decode_packet
 
 connect_command = 'CONNECT AS (\\d+|-\\d+) ON PORT (\\d+|-\\d+)'
 
@@ -35,6 +34,15 @@ class Peer:
             x = re.match(connect_command, command)
             if x is not None:
                 pass
+
+    def send_connection_request_to_parent(self):
+        if self.parent_address.id == NO_PARENT_ID:
+            return
+        socket = so.socket(so.AF_INET, so.SOCK_STREAM)
+        socket.connect((self.parent_address.host, self.parent_address.port))
+        packet = make_connection_request_packet(self.address.id, self.parent_address.id, self.address.port)
+        # send_packet_to_node(self.parent, packet)
+        socket.close()
 
     def connect_to_network(self, port, identifier):
         address = Address(MANAGER_HOST, port, identifier)

@@ -39,6 +39,11 @@ def send_message_to_socket(socket: so.socket, packet: Packet) -> None:
     pass
 
 
+def make_connection_request_packet(source_id: int, destination_id: int, port: int):
+    return Packet(packet_type=PacketType.CONNECTION_REQUEST, source_id=source_id, destination_id=destination_id,
+                  data=str(port))
+
+
 def parse_advertise_data(data: str):
     return int(data)
 

@@ -1,12 +1,14 @@
 import re
-import re
+import socket as so
 import threading
-from typing import Union
+from typing import Union, List
 
 from Configuration import *
+from Configuration import ENCODING
 from Node import *
 from PeerConnector import PeerConnector
 from Util import *
+from Util import encode_packet
 
 connect_command = 'CONNECT AS (\\d+|-\\d+) ON PORT (\\d+|-\\d+)'
 show_known_command = 'SHOW KNOWN CLIENTS'
@@ -154,6 +156,7 @@ class Peer:
             return
 
         addresses = self.get_routing_request_destination_for_packet(packet)
+        assert addresses is not None
         packet.source_id = self.address.id
         send_packet_to_addresses(addresses, packet)
 
@@ -196,7 +199,7 @@ class Peer:
         p = make_destination_not_found_message_packet(self.address.id, packet.source_id, packet.destination_id)
         addresses = self.get_routing_request_destination_for_packet(p)
         assert addresses is not None
-        send_packet_to_addresses(addresses, packet)
+        send_packet_to_addresses(addresses, p)
 
     def get_routing_request_destination_for_packet(self, packet: Packet) -> Union[List[Address], None]:
         print(" finding destination to ", packet.destination_id)
@@ -249,8 +252,16 @@ class Peer:
 
     def handle_destination_not_found_message(self, packet: Packet):
         assert packet.destination_id != -1
+        if packet.destination_id == self.address.id:
+            self.handle_destination_not_found_message_to_self(packet)
+            return
+
         addresses = self.get_routing_request_destination_for_packet(packet)
         send_packet_to_addresses(addresses, packet)
+
+    def handle_destination_not_found_message_to_self(self, packet: Packet):
+        print(packet.data)
+        print()
 
     def handle_connection_request_packet(self, packet: Packet):
         child_host = MANAGER_HOST

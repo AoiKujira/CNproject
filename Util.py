@@ -1,13 +1,7 @@
-import random
-import socket as so
-from typing import List
 import Configuration
 import Packet
-import socket as so
-from Configuration import ENCODING
 from Packet import Packet
 from PacketType import PacketType
-from Address import Address
 
 
 def get_random_port() -> int:

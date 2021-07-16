@@ -46,6 +46,8 @@ class Peer:
         self.address = address
 
     def start_listening(self):
+        if self.parent.id == NO_PARENT_ID:
+            return
         self.server = so.socket(so.AF_INET, so.SOCK_STREAM)
         self.server.bind((self.address.host, self.address.port))
         threading.Thread(target=self.listen).start()

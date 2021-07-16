@@ -5,6 +5,7 @@ import socket as so
 from Configuration import ENCODING
 from Packet import Packet
 from PacketType import PacketType
+from Node import Node
 
 
 def get_random_port() -> int:
@@ -33,9 +34,14 @@ def encode_packet(packet: Packet):
     return message
 
 
-def send_message_to_socket(socket: so.socket, packet: Packet) -> None:
+def make_connection_request_packet(source_id: int, destination_id: int, port: int):
+    return Packet(packet_type=PacketType.CONNECTION_REQUEST, source_id=source_id, destination_id=destination_id,
+                  data=str(port))
+
+
+def send_packet_to_node(node: Node, packet: Packet) -> None:
     s = encode_packet(packet)
-    socket.send(s.encode(ENCODING))
+    node.socket.send(s.encode(ENCODING))
     pass
 
 

@@ -31,5 +31,3 @@ class Parent(Node):
     def __init__(self, node_type: NodeType, socket: so.socket, address: Address):
         super(Parent, self).__init__(node_type, socket)
         self.address = address
-
-

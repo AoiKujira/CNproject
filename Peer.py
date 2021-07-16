@@ -17,6 +17,7 @@ class Peer:
         self.parent_address = None
         self.parent = None
         self.children = []
+        self.server = None
         threading.Thread(target=self.terminal).run()
 
     def terminal(self):
@@ -25,43 +26,49 @@ class Peer:
             x = re.match(connect_command, command)
             if x is not None:
                 try:
-                    self.address, parent_address = self.connect_to_network(int(x[2]), int(x[1]))
-                    self.parent = Node(NodeType.PARENT, so.socket(so.AF_INET, so.SOCK_STREAM))
-                    self.connect_to_parent()
+                    identifier = int(x.group(1))
+                    port = int(x.group(2))
+                    self.connect_to_network(port, identifier)
+                    self.start_listening()
+                    self.send_connection_request_to_parent()
                 except Exception as e:
                     print(e)
                     exit(0)
-                threading.Thread(target=self.listen).start()
                 continue
             x = re.match(connect_command, command)
             if x is not None:
                 pass
 
-    def connect_to_network(self, port, identifier):
+    def connect_to_network(self, port: int, identifier: int):
         address = Address(MANAGER_HOST, port, identifier)
         peer_connector = PeerConnector()
-        return address, peer_connector.get_id(address)
+        self.parent_address = peer_connector.negotiate_address_with_manager(address)
+        self.address = address
+
+    def start_listening(self):
+        self.server = so.socket(so.AF_INET, so.SOCK_STREAM)
+        self.server.bind((self.address.host, self.address.port))
+        threading.Thread(target=self.listen).start()
 
     def listen(self):
-        server = so.socket(so.AF_INET, so.SOCK_STREAM)
-        server.bind((self.address.host, self.address.port))
-        server.listen()
-
         while True:
-            client, address = server.accept()
-            child = Child(NodeType.CHILD, client)
-            self.children.append(child)
-            threading.Thread(target=self.listen_to_node, args=(child,)).start()
+            socket, address = self.server.accept()
+            self.parent = Parent(NodeType.PARENT, socket, self.parent_address)
+            self.advertise_to_parent()
+            threading.Thread(target=self.listen_to_node, args=(self.parent,)).start()
 
-    def connect_to_parent(self):
-        if self.parent_address.port == -1:
+    def send_connection_request_to_parent(self):
+        if self.parent_address.id == NO_PARENT_ID:
             return
-        self.parent.socket = so.socket(so.AF_INET, so.SOCK_STREAM)
-        self.parent.socket.connect((self.parent_address.host, self.parent_address.port))
+        socket = so.socket(so.AF_INET, so.SOCK_STREAM)
+        socket.connect((self.parent_address.host, self.parent_address.port))
+        packet = make_connection_request_packet(self.address.id, self.parent_address.id, self.address.port)
+        send_packet_to_node(self.parent, packet)
+        socket.close()
 
     def advertise_to_parent(self):
-        self.parent.socket.connect((self.parent.address.host, self.parent.address.port))
-        threading.Thread(target=self.listen_to_node, args=(self.parent,)).start()
+        packet = make_parent_advertise_packet(self.address.id, self.parent.id, self.address.id)
+        send_packet_to_node(self.parent, packet)
 
     def listen_to_node(self, node: Node):
         while True:
@@ -83,7 +90,7 @@ class Peer:
         elif packet.type == PacketType.DESTINATION_NOT_FOUND_MESSAGE:
             self.handle_destination_not_found_message(packet)
         elif packet.type == PacketType.CONNECTION_REQUEST:
-            pass
+            self.handle_connection_request_packet(packet)
         else:
             raise Exception("NOT SUPPORTED PACKET TYPE")
 
@@ -92,14 +99,8 @@ class Peer:
         subtree_child_id = parse_advertise_data(packet.data)
         node.add_sub_node_if_not_exists(subtree_child_id)
         if self.parent.address.id != NO_PARENT_ID:
-            send_message_to_socket(
-                self.parent.socket,
-                make_parent_advertise_packet(
-                    self.address.id,
-                    self.parent.address.id,
-                    subtree_child_id
-                )
-            )
+            packet = make_parent_advertise_packet(self.address.id, self.parent.address.id, subtree_child_id)
+            send_packet_to_node(self.parent, packet)
 
     def handle_routing_request_packet(self, node: Node, packet: Packet):
         if packet.destination_id == self.address.id:
@@ -111,11 +112,11 @@ class Peer:
             self.send_destination_not_found_message(node, packet)
             return
 
-        send_message_to_socket(forward_node.socket, packet)
+        send_packet_to_node(forward_node, packet)
 
     def send_destination_not_found_message(self, node: Node, packet: Packet):
         p = make_destination_not_found_message_packet(self.address.id, packet.source_id, packet.destination_id)
-        send_message_to_socket(node.socket, p)
+        send_packet_to_node(node, p)
 
     def get_routing_request_destination_node(self, packet: Packet) -> Union[Optional[Parent], Any]:
         for ch in self.children:
@@ -130,7 +131,7 @@ class Peer:
     def handle_routing_request_to_self(self, packet: Packet):
         response_packet = make_routing_response_packet(self.address.id, packet.source_id)
         node = self.get_routing_request_destination_node(packet)
-        send_message_to_socket(node.socket, response_packet)
+        send_packet_to_node(node, response_packet)
 
     def handle_routing_response_packet(self, node: Node, packet: Packet):
         if packet.destination_id == self.address.id:
@@ -146,14 +147,24 @@ class Peer:
         else:
             raise Exception("invalid node type encountered")
 
-        send_message_to_socket(forward_node.socket, packet)
+        send_packet_to_node(forward_node, packet)
 
     def handle_routing_response_to_self(self, packet: Packet):
         print(packet.data)
 
     def handle_destination_not_found_message(self, packet: Packet):
         forward_node = self.get_routing_request_destination_node(packet)
-        send_message_to_socket(forward_node.socket, packet)
+        send_packet_to_node(forward_node, packet)
+
+    def handle_connection_request_packet(self, packet: Packet):
+        child_host = MANAGER_HOST
+        child_port = int(packet.data)
+        socket = so.socket(so.AF_INET, so.SOCK_STREAM)
+        socket.bind((self.address.host, self.address.port))
+        socket.connect((child_host, child_port))
+        child = Child(NodeType.CHILD, socket)
+        self.children.append(child)
+        threading.Thread(target=self.listen_to_node, args=(child,))
 
 
 if __name__ == '__main__':

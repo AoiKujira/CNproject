@@ -7,6 +7,7 @@ port = 13991
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.connect((host, port))
 
+
 username = input('Enter username:\n')
 
 def recive():

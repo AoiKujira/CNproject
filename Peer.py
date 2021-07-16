@@ -1,16 +1,11 @@
+import re
+import threading
 from typing import Any, Optional, Union
 
-from Util import *
-from Address import Address
 from Configuration import *
-from PeerConnector import PeerConnector
-import time
-import socket as so
-import threading
-from PacketType import PacketType
-from Util import decode_packet, encode_packet
-import re
 from Node import *
+from PeerConnector import PeerConnector
+from Util import *
 from Util import decode_packet
 
 connect_command = 'CONNECT AS (\\d+|-\\d+) ON PORT (\\d+|-\\d+)'

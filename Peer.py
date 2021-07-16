@@ -23,6 +23,7 @@ class Peer:
         self.parent_address = None
         self.parent_socket = None
         self.children = []
+        self.is_connected = False
         threading.Thread(target=self.terminal).run()
 
     def terminal(self):
@@ -30,11 +31,15 @@ class Peer:
             command = input("$Enter command:")
             x = re.match(connect_command, command)
             if x is not None:
+                if self.is_connected:
+                    print('Denied\nAlready connected!')
+                    continue
                 try:
                     identifier = int(x.group(1))
                     port = int(x.group(2))
                     self.connect_to_network(port, identifier)
                     self.connect_to_parent()
+                    self.is_connected = True
                 except Exception as e:
                     print(e)
                     exit(0)

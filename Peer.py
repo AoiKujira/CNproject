@@ -81,11 +81,9 @@ class Peer:
                 identifiers = self.format_start_chat_identidires(command.split()[3:])
                 # REQUESTS FOR STARTING CHAT WITH CHAT_NAMEA: IDA, ID1, ID2, ID3...
 
-                pass
+                continue
 
-            x = re.match(advertise_command, command)
-            if x is not None:
-                pass
+            print('command not found!')
 
     def format_start_chat_identidires(self, ids):
         ret = []

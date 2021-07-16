@@ -22,13 +22,14 @@ def get_random_id() -> int:
 def decode_packet(message: str):
     try:
         message = message.split(maxsplit=3)
-        return Packet(int(message[0]), int(message[1]), int(message[2]), str(message[3]))
+        return Packet(packet_type=PacketType(int(message[0])), source_id=int(message[1]), destination_id=int(message[2]),
+                      data=str(message[3]))
     except Exception as e:
         print(e)
 
 
 def encode_packet(packet: Packet):
-    message = str(packet.type) + '\n' \
+    message = str(packet.type.value) + '\n' \
               + str(packet.source_id) + '\n' \
               + str(packet.destination_id) + "\n" \
               + str(packet.data)
@@ -36,7 +37,7 @@ def encode_packet(packet: Packet):
 
 
 def send_packet_to_address(address: Address, packet: Packet):
-    socket = so.socket(so.AF_INET, type=so.SOCK_DGRAM)  # use udp socket for request response style
+    socket = so.socket(so.AF_INET, type=so.SOCK_STREAM)  # use udp socket for request response style
     socket.connect((address.host, address.port))
     m = encode_packet(packet)
     socket.send(m.encode(ENCODING))

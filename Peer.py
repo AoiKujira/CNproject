@@ -99,13 +99,20 @@ class Peer:
         self.address = address
 
     def listen(self):
-        server = so.socket(so.AF_INET, type=so.SOCK_DGRAM)
+        server = so.socket(so.AF_INET, type=so.SOCK_STREAM)
         server.bind((self.address.host, self.address.port))
+        server.listen()
         while True:
-            message, address = server.recvfrom(BUFFER_SIZE)
-            print(f'received {message} from {address}')
-            packet = decode_packet(message)
-            self.handle_message(packet)
+            socket, address = server.accept()
+            print(f'connected to {address}')
+            self.handle_socket(socket)
+
+    def handle_socket(self, socket: so.socket):
+        message = socket.recv(BUFFER_SIZE).decode(ENCODING)
+        print(f'message: {message}')
+        packet = decode_packet(message)
+        self.handle_message(packet)
+        socket.close()
 
     def handle_message(self, packet: Packet):
         if packet.type == PacketType.MESSAGE:
@@ -127,7 +134,7 @@ class Peer:
 
     def handle_parent_advertise_packet(self, packet: Packet):
         subtree_child_id = parse_advertise_data(packet.data)
-        child = self.find_child_with_id(subtree_child_id)
+        child = self.find_child_with_id(packet.source_id)
         child.add_sub_node_if_not_exists(subtree_child_id)
         if self.parent_address.id != NO_PARENT_ID:
             send_packet_to_address(
@@ -140,7 +147,8 @@ class Peer:
             )
 
     def find_child_with_id(self, identifier: int) -> Child:
-        return filter(lambda child: child.address.id == identifier, self.children)[0]
+        candidates = list(filter(lambda child: child.address.id == identifier, self.children))
+        return candidates[0]
 
     def handle_routing_request_packet(self, packet: Packet):
         if packet.destination_id == self.address.id:
@@ -209,7 +217,8 @@ class Peer:
 
     def advertise_to_parent(self, child: Child):
         packet = make_parent_advertise_packet(self.address.id, self.parent_address.id, child.address.id)
-        send_packet_to_address(self.parent_address, packet)
+        if self.parent_address.id != NO_PARENT_ID:
+            send_packet_to_address(self.parent_address, packet)
 
 
 if __name__ == '__main__':

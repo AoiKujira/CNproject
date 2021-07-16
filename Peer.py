@@ -21,7 +21,6 @@ class Peer:
         self.known_ids = []
         self.address = None
         self.parent_address = None
-        self.parent_socket = None
         self.children = []
         self.is_connected = False
         threading.Thread(target=self.terminal).run()
@@ -102,6 +101,7 @@ class Peer:
         if self.parent_address.id == NO_PARENT_ID:
             return
         self.send_connection_request_to_parent()
+        self.known_ids.append(self.parent_address.id)
 
     def send_connection_request_to_parent(self):
         packet = make_connection_request_packet(self.address.id, self.parent_address.id, self.address.port)
@@ -166,6 +166,7 @@ class Peer:
 
     def handle_parent_advertise_packet(self, packet: Packet):
         subtree_child_id = parse_advertise_data(packet.data)
+        self.known_ids.append(subtree_child_id)
         child = self.find_child_with_id(packet.source_id)
         child.add_sub_node_if_not_exists(subtree_child_id)
         if self.parent_address.id != NO_PARENT_ID:
@@ -249,6 +250,7 @@ class Peer:
         child_host = MANAGER_HOST
         child_port = int(packet.data)
         child_id = packet.source_id
+        self.known_ids.append(child_id)
         child_address = Address(child_host, child_port, child_id)
         child = Child(child_address)
         self.children.append(child)

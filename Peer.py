@@ -1,17 +1,11 @@
+import re
+import threading
 from typing import Any, Optional, Union
 
-from Util import *
-from Address import Address
 from Configuration import *
-from PeerConnector import PeerConnector
-import time
-import socket as so
-import threading
-from PacketType import PacketType
-from Util import decode_packet, encode_packet
-import re
 from Node import *
-from Util import decode_packet
+from PeerConnector import PeerConnector
+from Util import *
 
 connect_command = 'CONNECT AS (\\d+|-\\d+) ON PORT (\\d+|-\\d+)'
 
@@ -20,7 +14,8 @@ class Peer:
     def __init__(self):
         self.address = None
         self.parent_address = None
-        self.parent_socket = None
+        self.parent = None
+        self.children = []
         threading.Thread(target=self.terminal).run()
         
     def terminal(self):
@@ -29,7 +24,8 @@ class Peer:
             x = re.match(connect_command, command)
             if x is not None:
                 try:
-                    self.address, self.parent_address = self.connect_to_network(int(x[2]), int(x[1]))
+                    self.address, parent_address = self.connect_to_network(int(x[2]), int(x[1]))
+                    self.parent = Node(NodeType.PARENT, so.socket(so.AF_INET, so.SOCK_STREAM))
                     self.connect_to_parent()
                 except Exception as e:
                     print(e)
@@ -59,8 +55,8 @@ class Peer:
     def connect_to_parent(self):
         if self.parent_address.port == -1:
             return
-        self.parent_socket = so.socket(so.AF_INET, so.SOCK_STREAM)
-        self.parent_socket.connect((self.parent_address.host, self.parent_address.port))
+        self.parent.socket = so.socket(so.AF_INET, so.SOCK_STREAM)
+        self.parent.socket.connect((self.parent_address.host, self.parent_address.port))
 
     def advertise_to_parent(self):
         self.parent.socket.connect((self.parent.address.host, self.parent.address.port))
@@ -76,7 +72,7 @@ class Peer:
         if packet.type == PacketType.MESSAGE:
             pass
         elif packet.type == PacketType.ROUTING_REQUEST:
-            self.handle_routing_request_packet(packet)
+            self.handle_routing_request_packet(node, packet)
         elif packet.type == PacketType.ROUTING_RESPONSE:
             self.handle_routing_response_packet(node, packet)
         elif packet.type == PacketType.PARENT_ADVERTISE:

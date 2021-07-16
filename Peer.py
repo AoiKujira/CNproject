@@ -131,7 +131,7 @@ class Peer:
 
     def handle_message(self, packet: Packet):
         if packet.type == PacketType.MESSAGE:
-            pass
+            self.handle_message_packet(packet)
         elif packet.type == PacketType.ROUTING_REQUEST:
             self.handle_routing_request_packet(packet)
         elif packet.type == PacketType.ROUTING_RESPONSE:
@@ -146,6 +146,18 @@ class Peer:
             self.handle_connection_request_packet(packet)
         else:
             raise Exception("NOT SUPPORTED PACKET TYPE")
+
+    def handle_message_packet(self, packet: Packet):
+        if self.address.id == packet.destination_id:
+            self.handle_message_packet(packet)
+            return
+
+        addresses = self.get_routing_request_destination_for_packet(packet)
+        assert addresses is not None
+        self.send_packet_to_addresses(addresses, packet)
+
+    def handle_message_packet_to_self(self, packet: Packet):
+        print(f'received message packet: {packet.data}')
 
     def handle_advertise_packet(self, packet: Packet):
         if self.address.id != int(packet.data):
@@ -281,7 +293,8 @@ class Peer:
 
     def send_packet_to_addresses(self, addresses: List[Address], packet: Packet):
         for address in addresses:
-            socket = so.socket(so.AF_INET, type=so.SOCK_STREAM)  # use udp socket for request response style
+            socket = so.socket(so.AF_INET, type=so.SOCK_STREAM)
+            socket.bind((self.address.host, self.address.port))
             print(f'sending packet {encode_packet(packet)} to {address.id} on port {address.port}')
             socket.connect((address.host, address.port))
             m = encode_packet(packet)

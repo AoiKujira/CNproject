@@ -10,6 +10,7 @@ from Util import *
 connect_command = 'CONNECT AS (\\d+|-\\d+) ON PORT (\\d+|-\\d+)'
 show_known_command = 'SHOW KNOWN CLIENTS'
 
+
 class Peer:
 
     def __init__(self):

@@ -28,7 +28,7 @@ def decode_packet(message: str):
 
 
 def encode_packet(packet: Packet):
-    message = str(packet.message_type) + '\n' \
+    message = str(packet.type) + '\n' \
               + str(packet.source_id) + '\n' \
               + str(packet.destination_id) + "\n" \
               + str(packet.data)

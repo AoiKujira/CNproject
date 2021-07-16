@@ -14,7 +14,7 @@ connect_command = 'CONNECT AS (\\d+|-\\d+) ON PORT (\\d+|-\\d+)'
 show_known_command = 'SHOW KNOWN CLIENTS'
 route_command = 'ROUTE (\\d+|-\\d+)'
 advertise_command = 'Advertise (\\d+|-\\d+)'
-start_chat_command = 'START CHAT ([\\w\\d._-]+): [.]*'
+start_chat_command = 'START CHAT ([\\w\\d._-]+): .*'
 
 
 class Peer:
@@ -125,8 +125,7 @@ class Peer:
     def handle_socket(self, socket: so.socket):
         message = socket.recv(BUFFER_SIZE).decode(ENCODING)
         print(f'message: {message}')
-        packet = decode_packet(message)
-        self.handle_message(packet)
+        packet = decode_packet(message); self.handle_message(packet)
         socket.close()
 
     def handle_message(self, packet: Packet):

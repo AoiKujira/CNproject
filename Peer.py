@@ -105,7 +105,7 @@ class Peer:
 
     def send_connection_request_to_parent(self):
         packet = make_connection_request_packet(self.address.id, self.parent_address.id, self.address.port)
-        send_packet_to_address(self.parent_address, packet)
+        self.send_packet_to_address(self.parent_address, packet)
 
     def connect_to_network(self, port: int, identifier: int):
         address = Address(MANAGER_HOST, port, identifier)
@@ -158,7 +158,7 @@ class Peer:
         addresses = self.get_routing_request_destination_for_packet(packet)
         assert addresses is not None
         packet.source_id = self.address.id
-        send_packet_to_addresses(addresses, packet)
+        self.send_packet_to_addresses(addresses, packet)
 
     def handle_advertise_to_self(self, packet: Packet):
         print('received advertise to self packet')
@@ -171,7 +171,7 @@ class Peer:
         child = self.find_child_with_id(packet.source_id)
         child.add_sub_node_if_not_exists(subtree_child_id)
         if self.parent_address.id != NO_PARENT_ID:
-            send_packet_to_addresses(
+            self.send_packet_to_addresses(
                 self.parent_address,
                 make_parent_advertise_packet(
                     self.address.id,
@@ -193,13 +193,13 @@ class Peer:
         if addresses is None:
             self.send_destination_not_found_message(packet)
             return
-        send_packet_to_addresses(addresses, packet)
+        self.send_packet_to_addresses(addresses, packet)
 
     def send_destination_not_found_message(self, packet: Packet):
         p = make_destination_not_found_message_packet(self.address.id, packet.source_id, packet.destination_id)
         addresses = self.get_routing_request_destination_for_packet(p)
         assert addresses is not None
-        send_packet_to_addresses(addresses, p)
+        self.send_packet_to_addresses(addresses, p)
 
     def get_routing_request_destination_for_packet(self, packet: Packet) -> Union[List[Address], None]:
         print(" finding destination to ", packet.destination_id)
@@ -225,16 +225,15 @@ class Peer:
     def handle_routing_request_to_self(self, packet: Packet):
         response_packet = make_routing_response_packet(self.address.id, packet.source_id)
         addresses = self.get_routing_request_destination_for_packet(response_packet)
-        send_packet_to_addresses(addresses, response_packet)
+        self.send_packet_to_addresses(addresses, response_packet)
 
     def handle_routing_response_packet(self, packet: Packet):
-        assert packet.destination_id != -1
         if packet.destination_id == self.address.id:
             self.handle_routing_response_to_self(packet)
             return
         self.append_current_node_to_routing_response_message(packet)
         addresses = self.get_routing_request_destination_for_packet(packet)
-        send_packet_to_addresses(addresses, packet)
+        self.send_packet_to_addresses(addresses, packet)
 
     def handle_routing_response_to_self(self, packet: Packet):
         self.append_current_node_to_routing_response_message(packet)
@@ -251,13 +250,12 @@ class Peer:
             packet.data = f'{self.address.id}->{packet.data}'
 
     def handle_destination_not_found_message(self, packet: Packet):
-        assert packet.destination_id != -1
         if packet.destination_id == self.address.id:
             self.handle_destination_not_found_message_to_self(packet)
             return
 
         addresses = self.get_routing_request_destination_for_packet(packet)
-        send_packet_to_addresses(addresses, packet)
+        self.send_packet_to_addresses(addresses, packet)
 
     def handle_destination_not_found_message_to_self(self, packet: Packet):
         print(packet.data)
@@ -276,7 +274,19 @@ class Peer:
     def advertise_to_parent(self, child: Child):
         packet = make_parent_advertise_packet(self.address.id, self.parent_address.id, child.address.id)
         if self.parent_address.id != NO_PARENT_ID:
-            send_packet_to_address(self.parent_address, packet)
+            self.send_packet_to_address(self.parent_address, packet)
+
+    def send_packet_to_address(self, address: Address, packet: Packet):
+        self.send_packet_to_addresses([address], packet)
+
+    def send_packet_to_addresses(self, addresses: List[Address], packet: Packet):
+        for address in addresses:
+            socket = so.socket(so.AF_INET, type=so.SOCK_STREAM)  # use udp socket for request response style
+            print(f'sending packet {encode_packet(packet)} to {address.id} on port {address.port}')
+            socket.connect((address.host, address.port))
+            m = encode_packet(packet)
+            socket.send(m.encode(ENCODING))
+            socket.close()
 
 
 if __name__ == '__main__':

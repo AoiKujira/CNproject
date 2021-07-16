@@ -32,20 +32,6 @@ def encode_packet(packet: Packet):
     return message
 
 
-def send_packet_to_address(address: Address, packet: Packet):
-    send_packet_to_addresses([address], packet)
-
-
-def send_packet_to_addresses(addresses: List[Address], packet: Packet):
-    for address in addresses:
-        socket = so.socket(so.AF_INET, type=so.SOCK_STREAM)  # use udp socket for request response style
-        print(f'sending packet {encode_packet(packet)} to {address.id} on port {address.port}')
-        socket.connect((address.host, address.port))
-        m = encode_packet(packet)
-        socket.send(m.encode(ENCODING))
-        socket.close()
-
-
 def make_connection_request_packet(source_id: int, destination_id: int, port: int):
     return Packet(packet_type=PacketType.CONNECTION_REQUEST, source_id=source_id, destination_id=destination_id,
                   data=str(port))

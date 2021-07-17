@@ -3,7 +3,7 @@ import re
 from Configuration import *
 from Address import Address
 
-request_message = '{} {}'
+request_message = '{} REQUESTS FOR CONNECTING TO NETWORK ON PORT {}'
 success_response = 'CONNECT TO (\\d+|-\\d+) WITH PORT (\\d+|-\\d+)'
 
 

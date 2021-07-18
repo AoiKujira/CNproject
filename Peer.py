@@ -100,7 +100,7 @@ class Peer:
             if i == ',':
                 continue
             if i[-1] == ',':
-                i = i[:-2]
+                i = i[:-1]
             i = int(i)
             if i in self.known_ids and i not in ret and i != self.address.id:
                 ret.append(i)
@@ -157,7 +157,7 @@ class Peer:
 
     def handle_message_packet(self, packet: Packet):
         if self.address.id == packet.destination_id:
-            self.handle_message_packet(packet)
+            self.handle_message_packet_to_self(packet)
             return
 
         addresses = self.get_routing_request_destination_for_packet(packet)
@@ -166,9 +166,9 @@ class Peer:
 
     def handle_message_packet_to_self(self, packet: Packet):
         print(f'received message packet: {packet.data}')
-        message = packet.data.split()
-        if packet.data.split()[0] == 'REQUEST':
-            print('{} with id {} has asked you to join a chat. Would you like to join?[Y/N]')
+        x = re.match(request_chat_command, packet.data)
+        if x is not None:
+            print(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
             #get lock before print,  add self.got_request = True
 
     def handle_advertise_packet(self, packet: Packet):
@@ -306,7 +306,7 @@ class Peer:
     def send_packet_to_addresses(self, addresses: List[Address], packet: Packet):
         for address in addresses:
             socket = so.socket(so.AF_INET, type=so.SOCK_STREAM)
-            print(f'sending packet: {{\n{encode_packet(packet)} to {address.id} on port {address.port}\n}}')
+            print(f'sending packet: {{\n{encode_packet(packet)}\n}} to {address.id} on port {address.port}')
             socket.connect((address.host, address.port))
             m = encode_packet(packet)
             socket.send(m.encode(ENCODING))

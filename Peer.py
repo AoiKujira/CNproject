@@ -166,7 +166,7 @@ class Peer:
         print(f'received message packet: {packet.data}')
 
         x = re.match(request_chat_command, packet.data)
-        if x is not None:
+        if x is not None and self.chat_name == None:
             x = input(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
             if x == 'y' or x == 'Y':
                 self.chat_name = input('$Choose a name for yourself:')

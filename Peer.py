@@ -17,6 +17,8 @@ advertise_command = 'Advertise (\\d+|-\\d+)'
 start_chat_command = 'START CHAT ([\\w\\d._-]+): ((\\d+|-\\d+)(, *(\\d+|-\\d+))*)'
 request_chat_command = 'REQUESTS FOR STARTING CHAT WITH ([\\w\\d._-]+): (\\d+|-\\d+)((, *(\\d+|-\\d+))+)'
 join_message = '(\\d+|-\\d+): ([\\w\\d._-]+)'
+close_chat_command = ''
+chat_message = 'CHAT:\n.*'
 
 class Peer:
 
@@ -28,88 +30,96 @@ class Peer:
         self.is_connected = False
         self.chat_name = None
         self.got_request = False
-        self.request_message = ''
+        self.chat_members = None
+        self.chat_invite_members = None
         self.command = None
         threading.Thread(target=self.terminal).run()
 
     def terminal(self):
         while True:
-            self.command = input("$Enter command:")
-            
-            if self.got_request:
-                if self.command == 'y' or self.command == 'Y':
-                    x = re.match(request_chat_command, self.request_message)
-                    self.chat_name = input('$Choose a name for yourself:')
-                    data = f'{self.address.id}: {self.chat_name}'
-                    identifiers = self.get_start_chat_identifires((x[2]+x[3]).split())
-                    print(identifiers)
-                    for identifier in identifiers:
-                        if identifier != self.address.id:
-                            packet = make_message_packet(self.address.id, identifier, data)
-                            self.send_message(packet)
-                self.got_request = False
-                self.request_message = ''
-                continue
+            if self.chat_name:
+                self.command = input('$Enter message:')
+                x = re.match(close_chat_command, self.command)
+                if x is not None:
+                    pass
 
-            x = re.match(connect_command, self.command)
-            if x is not None:
-                if self.is_connected:
-                    print('Denied\nAlready connected!')
+                for i in self.chat_members:
+                    packet = make_message_packet(self.address.id, i, 'CHAT:\n' + self.command)
+                    self.send_message(packet)
+            else:
+                self.command = input("$Enter command:")
+                
+                if self.got_request:
+                    if self.command == 'y' or self.command == 'Y':
+                        self.chat_name = input('$Choose a name for yourself:')
+                        data = f'CHAT:\n{self.address.id}: {self.chat_name}'
+                        for identifier in identifiers:
+                            if identifier != self.address.id:
+                                packet = make_message_packet(self.address.id, identifier, data)
+                                self.send_message(packet)
+                    self.got_request = False
+                    self.request_message = ''
                     continue
-                try:
-                    identifier = int(x.group(1))
-                    port = int(x.group(2))
-                    self.connect_to_network(port, identifier)
-                    self.connect_to_parent()
-                    self.is_connected = True
-                except Exception as e:
-                    print(e)
-                    exit(0)
-                threading.Thread(target=self.listen).start()
-                continue
 
-            x = re.match(show_known_command, self.command)
-            if x is not None:
-                for known_id in self.known_ids:
-                    print(known_id)
-                continue
+                x = re.match(connect_command, self.command)
+                if x is not None:
+                    if self.is_connected:
+                        print('Denied\nAlready connected!')
+                        continue
+                    try:
+                        identifier = int(x.group(1))
+                        port = int(x.group(2))
+                        self.connect_to_network(port, identifier)
+                        self.connect_to_parent()
+                        self.is_connected = True
+                    except Exception as e:
+                        print(e)
+                        exit(0)
+                    threading.Thread(target=self.listen).start()
+                    continue
 
-            x = re.match(route_command, self.command)
-            if x is not None:
-                # if int(x[1]) in self.known_ids:
-                packet = Packet(packet_type=PacketType.ROUTING_REQUEST,
-                                source_id=self.address.id,
-                                destination_id=int(x[1]),
-                                data=None)
-                self.handle_routing_request_packet(packet)
-                # else:
-                #     print('Unknown id')
-                continue
+                x = re.match(show_known_command, self.command)
+                if x is not None:
+                    for known_id in self.known_ids:
+                        print(known_id)
+                    continue
 
-            x = re.match(advertise_command, self.command)
-            if x is not None:
-                if int(x[1]) in self.known_ids:
-                    packet = Packet(packet_type=PacketType.ADVERTISE,
+                x = re.match(route_command, self.command)
+                if x is not None:
+                    # if int(x[1]) in self.known_ids:
+                    packet = Packet(packet_type=PacketType.ROUTING_REQUEST,
                                     source_id=self.address.id,
                                     destination_id=int(x[1]),
-                                    data=str(self.address.id))
-                    self.handle_advertise_packet(packet)
-                else:
-                    print('Unknown id')
-                continue
+                                    data=None)
+                    self.handle_routing_request_packet(packet)
+                    # else:
+                    #     print('Unknown id')
+                    continue
 
-            x = re.match(start_chat_command, self.command)
-            if x is not None:
-                self.chat_name = x[1]
-                data = f'REQUESTS FOR STARTING CHAT WITH {self.chat_name}: {self.address.id}, ' + x[2]
-                
-                identifiers = self.get_start_chat_identifires(x[2].split())
-                for identifier in identifiers:
-                    packet = make_message_packet(self.address.id, identifier, data)
-                    self.send_message(packet)
-                continue
+                x = re.match(advertise_command, self.command)
+                if x is not None:
+                    if int(x[1]) in self.known_ids:
+                        packet = Packet(packet_type=PacketType.ADVERTISE,
+                                        source_id=self.address.id,
+                                        destination_id=int(x[1]),
+                                        data=str(self.address.id))
+                        self.handle_advertise_packet(packet)
+                    else:
+                        print('Unknown id')
+                    continue
 
-            print('command not found!')
+                x = re.match(start_chat_command, self.command)
+                if x is not None:
+                    self.chat_name = x[1]
+                    data = f'CHAT:\nREQUESTS FOR STARTING CHAT WITH {self.chat_name}: {self.address.id}, ' + x[2]
+                    
+                    identifiers = self.get_start_chat_identifires(x[2].split())
+                    for identifier in identifiers:
+                        packet = make_message_packet(self.address.id, identifier, data)
+                        self.send_message(packet)
+                    continue
+
+                print('command not found!')
 
     def get_start_chat_identifires(self, ids):
         ret = []
@@ -183,18 +193,21 @@ class Peer:
 
     def handle_message_packet_to_self(self, packet: Packet):
         print(f'received message packet.data: \"{packet.data}\"')
+        if re.match(chat_message, packet.data):
+            data = encode_message_packet(packet.data)
+            x = re.match(request_chat_command, packet.data)
+            if x is not None and self.chat_name is None:
+                self.request_message = packet.data
+                self.got_request = True
+                x = re.match(request_chat_command, self.request_message)
+                self.chat_invite_members = self.get_start_chat_identifires((x[2]+x[3]).split()) 
+                print(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
+                return
 
-        x = re.match(request_chat_command, packet.data)
-        if x is not None and self.chat_name is None:
-            self.request_message = packet.data
-            self.got_request = True
-            print(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
-            return
-
-        x = re.match(join_message, packet.data)
-        if x is not None:
-            print(f'{x[2]}({x[1]}) was joined to the chat.')
-            return
+            x = re.match(join_message, packet.data)
+            if x is not None:
+                print(f'{x[2]}({x[1]}) was joined to the chat.')
+                return
 
     def handle_advertise_packet(self, packet: Packet):
         if self.address.id != int(packet.data):

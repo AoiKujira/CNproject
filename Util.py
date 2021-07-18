@@ -31,6 +31,10 @@ def encode_packet(packet: Packet):
               + str(packet.data)
     return message
 
+def encode_message_packet(data: str):
+    data = data.split('\n', maxsplit=1)
+    return data[1]
+
 def make_message_packet(source_id: int, destination_id: int, data:str):
     return Packet(packet_type=PacketType.MESSAGE,
                   source_id=source_id,

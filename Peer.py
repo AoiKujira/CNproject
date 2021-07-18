@@ -14,7 +14,8 @@ connect_command = 'CONNECT AS (\\d+|-\\d+) ON PORT (\\d+|-\\d+)'
 show_known_command = 'SHOW KNOWN CLIENTS'
 route_command = 'ROUTE (\\d+|-\\d+)'
 advertise_command = 'Advertise (\\d+|-\\d+)'
-start_chat_command = 'START CHAT ([\\w\\d._-]+): .*'
+start_chat_command = 'START CHAT ([\\w\\d._-]+): ((\\d+|-\\d+)(, *(\\d+|-\\d+))*)'
+request_chat_command = 'REQUESTS FOR STARTING CHAT WITH ([\\w\\d._-]+): (\\d+|-\\d+)((, *(\\d+|-\\d+))+)'
 
 
 class Peer:
@@ -80,16 +81,24 @@ class Peer:
             x = re.match(start_chat_command, command)
             if x is not None:
                 self.chat_name = x[1]
-                identifiers = self.format_start_chat_identidires(command.split()[3:])
-                # REQUESTS FOR STARTING CHAT WITH CHAT_NAMEA: IDA, ID1, ID2, ID3...
-
+                data = f'REQUESTS FOR STARTING CHAT WITH {self.chat_name}: {self.address.id}, ' + x[2]
+                
+                identifiers = self.get_start_chat_identidires(x[2].split())
+                for identifier in identifiers:
+                    packet = Packet(packet_type=PacketType.MESSAGE,
+                                    source_id=self.address.id,
+                                    destination_id=identifier,
+                                    data=data)
+                    self.send_message(packet)
                 continue
 
             print('command not found!')
 
-    def format_start_chat_identidires(self, ids):
+    def get_start_chat_identidires(self, ids):
         ret = []
         for i in ids:
+            if i == ',':
+                continue
             if i[-1] == ',':
                 i = i[:-2]
             i = int(i)
@@ -157,6 +166,10 @@ class Peer:
 
     def handle_message_packet_to_self(self, packet: Packet):
         print(f'received message packet: {packet.data}')
+        message = packet.data.split()
+        if packet.data.split()[0] == 'REQUEST':
+            print('{} with id {} has asked you to join a chat. Would you like to join?[Y/N]')
+            #get lock before print,  add self.got_request = True
 
     def handle_advertise_packet(self, packet: Packet):
         if self.address.id != int(packet.data):
@@ -299,6 +312,12 @@ class Peer:
             socket.send(m.encode(ENCODING))
             socket.close()
 
+    def send_message(self, packet: Packet):
+        addresses = self.get_routing_request_destination_for_packet(packet)
+        if addresses is None:
+            self.send_destination_not_found_message(packet)
+            return
+        self.send_packet_to_addresses(addresses, packet)
 
 if __name__ == '__main__':
     peer = Peer()

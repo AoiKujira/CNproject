@@ -17,7 +17,8 @@ advertise_command = 'Advertise (\\d+|-\\d+)'
 start_chat_command = 'START CHAT ([\\w\\d._-]+): ((\\d+|-\\d+)(, *(\\d+|-\\d+))*)'
 request_chat_command = 'REQUESTS FOR STARTING CHAT WITH ([\\w\\d._-]+): (\\d+|-\\d+)((, *(\\d+|-\\d+))+)'
 join_message = '(\\d+|-\\d+): ([\\w\\d._-]+)'
-close_chat_command = ''
+exit_chat_command = 'EXIT CHAT'
+someone_exit_chat_message = 'EXIT CHAT ((\\d+|-\\d+))'
 chat_message = 'CHAT:\n.*'
 
 class Peer:
@@ -30,33 +31,49 @@ class Peer:
         self.is_connected = False
         self.chat_name = None
         self.got_request = False
-        self.chat_members = None
-        self.chat_invite_members = None
+        self.chat_members = {}
+        self.chat_invite_members = []
         self.command = None
         threading.Thread(target=self.terminal).run()
 
     def terminal(self):
         while True:
-            if self.chat_name:
+            if self.chat_name is not None:
                 self.command = input('$Enter message:')
-                x = re.match(close_chat_command, self.command)
+                x = re.match(exit_chat_command, self.command)
                 if x is not None:
-                    pass
+                    for i in self.chat_invite_members:
+                        packet = make_message_packet(self.address.id, i, f'CHAT:\nEXIT CHAT {self.chat_name}')
+                        self.send_message(packet)
+                    self.chat_invite_members = []
+                    self.chat_members = {}
+                    self.chat_name = None
+                    continue
 
-                for i in self.chat_members:
-                    packet = make_message_packet(self.address.id, i, 'CHAT:\n' + self.command)
+                for i in self.chat_members.keys():
+                    packet = make_message_packet(self.address.id, i, f'CHAT:\n{self.chat_name}: {self.command}')
                     self.send_message(packet)
             else:
                 self.command = input("$Enter command:")
                 
                 if self.got_request:
+                    for i in self.chat_invite_members:
+                        if i not in self.known_ids:
+                            self.known_ids.append(i)
+
                     if self.command == 'y' or self.command == 'Y':
                         self.chat_name = input('$Choose a name for yourself:')
                         data = f'CHAT:\n{self.address.id}: {self.chat_name}'
-                        for identifier in identifiers:
+                        print(f'im telling {self.chat_invite_members}')
+                        for identifier in self.chat_invite_members:
                             if identifier != self.address.id:
                                 packet = make_message_packet(self.address.id, identifier, data)
                                 self.send_message(packet)
+                    else:
+                        self.chat_members = {}
+                        self.chat_invite_members = []
+                        self.chat_name = None
+
                     self.got_request = False
                     self.request_message = ''
                     continue
@@ -111,9 +128,11 @@ class Peer:
                 x = re.match(start_chat_command, self.command)
                 if x is not None:
                     self.chat_name = x[1]
-                    data = f'CHAT:\nREQUESTS FOR STARTING CHAT WITH {self.chat_name}: {self.address.id}, ' + x[2]
-                    
                     identifiers = self.get_start_chat_identifires(x[2].split())
+                    data = f'CHAT:\nREQUESTS FOR STARTING CHAT WITH {self.chat_name}: {self.address.id}'
+                    for i in identifiers:
+                        data += f', {i}'
+                    
                     for identifier in identifiers:
                         packet = make_message_packet(self.address.id, identifier, data)
                         self.send_message(packet)
@@ -130,6 +149,18 @@ class Peer:
                 i = i[:-1]
             i = int(i)
             if i in self.known_ids and i not in ret and i != self.address.id:
+                ret.append(i)
+        return ret
+
+    def get_request_chat_identifires(self, ids):
+        ret = []
+        for i in ids:
+            if i == ',':
+                continue
+            if i[-1] == ',':
+                i = i[:-1]
+            i = int(i)
+            if i != self.address.id:
                 ret.append(i)
         return ret
 
@@ -155,12 +186,12 @@ class Peer:
         server.listen()
         while True:
             socket, address = server.accept()
-            print(f'connected to {address}')
+            print(f'\nconnected to {address}')
             self.handle_socket(socket)
 
     def handle_socket(self, socket: so.socket):
         message = socket.recv(BUFFER_SIZE).decode(ENCODING)
-        print(f'message: {message}')
+        print(f'got packet: {{\n{message}\n}}')
         packet = decode_packet(message); self.handle_message(packet)
         socket.close()
 
@@ -192,22 +223,33 @@ class Peer:
         self.send_packet_to_addresses(addresses, packet)
 
     def handle_message_packet_to_self(self, packet: Packet):
-        print(f'received message packet.data: \"{packet.data}\"')
         if re.match(chat_message, packet.data):
             data = encode_message_packet(packet.data)
-            x = re.match(request_chat_command, packet.data)
+            x = re.match(request_chat_command, data)
             if x is not None and self.chat_name is None:
-                self.request_message = packet.data
+                self.request_message = data
                 self.got_request = True
                 x = re.match(request_chat_command, self.request_message)
-                self.chat_invite_members = self.get_start_chat_identifires((x[2]+x[3]).split()) 
+                self.chat_invite_members = self.get_request_chat_identifires((x[2]+x[3]).split())
+                self.chat_members[int(x[2])] = x[1]
                 print(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
                 return
 
-            x = re.match(join_message, packet.data)
+            x = re.match(join_message, data)
             if x is not None:
                 print(f'{x[2]}({x[1]}) was joined to the chat.')
+                if int(x[1]) not in self.chat_members.keys():
+                    self.chat_members[int(x[1])] = x[2]
                 return
+            
+            x = re.match(someone_exit_chat_message, data)
+            if x is not None:
+                print(f'{self.chat_members[int(x[1])]}({x[1]}) left the chat.')
+                if int(x[1]) not in self.chat_members.keys():
+                    self.chat_members.append(int(x[1]))
+                return
+            
+            print(f'${data}')
 
     def handle_advertise_packet(self, packet: Packet):
         if self.address.id != int(packet.data):

@@ -16,7 +16,7 @@ route_command = 'ROUTE (\\d+|-\\d+)'
 advertise_command = 'Advertise (\\d+|-\\d+)'
 start_chat_command = 'START CHAT ([\\w\\d._-]+): ((\\d+|-\\d+)(, *(\\d+|-\\d+))*)'
 request_chat_command = 'REQUESTS FOR STARTING CHAT WITH ([\\w\\d._-]+): (\\d+|-\\d+)((, *(\\d+|-\\d+))+)'
-
+join_message = '(\\d+|-\\d+): ([\\w\\d._-]+)'
 
 class Peer:
 
@@ -26,6 +26,7 @@ class Peer:
         self.parent_address = None
         self.children = []
         self.is_connected = False
+        self.chat_name = None
         threading.Thread(target=self.terminal).run()
 
     def terminal(self):
@@ -83,18 +84,15 @@ class Peer:
                 self.chat_name = x[1]
                 data = f'REQUESTS FOR STARTING CHAT WITH {self.chat_name}: {self.address.id}, ' + x[2]
                 
-                identifiers = self.get_start_chat_identidires(x[2].split())
+                identifiers = self.get_start_chat_identifires(x[2].split())
                 for identifier in identifiers:
-                    packet = Packet(packet_type=PacketType.MESSAGE,
-                                    source_id=self.address.id,
-                                    destination_id=identifier,
-                                    data=data)
+                    packet = make_message_packet(self.address.id, identifier, data)
                     self.send_message(packet)
                 continue
 
             print('command not found!')
 
-    def get_start_chat_identidires(self, ids):
+    def get_start_chat_identifires(self, ids):
         ret = []
         for i in ids:
             if i == ',':
@@ -166,10 +164,24 @@ class Peer:
 
     def handle_message_packet_to_self(self, packet: Packet):
         print(f'received message packet: {packet.data}')
+
         x = re.match(request_chat_command, packet.data)
         if x is not None:
-            print(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
-            #get lock before print,  add self.got_request = True
+            x = input(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
+            if x == 'y' or x == 'Y':
+                self.chat_name = input('$Choose a name for yourself:')
+                data = f'{self.address.id}: {self.chat_name}'
+                identifiers = self.get_start_chat_identifires((x[2]+x[3]).split())
+                for identifier in identifiers:
+                    if identifier != self.address.id:
+                        packet = make_message_packet(self.address.id, identifier, data)
+                        self.send_message(packet)
+            return
+
+        x = re.match(join_message, packet.data)
+        if x is not None:
+            print(f'{x[2]}({x[1]}) was joined to the chat.')
+            return
 
     def handle_advertise_packet(self, packet: Packet):
         if self.address.id != int(packet.data):

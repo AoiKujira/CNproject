@@ -31,6 +31,11 @@ def encode_packet(packet: Packet):
               + str(packet.data)
     return message
 
+def make_message_packet(source_id: int, destination_id: int, data:str):
+    return Packet(packet_type=PacketType.MESSAGE,
+                  source_id=source_id,
+                  destination_id=destination_id,
+                  data=data)
 
 def make_connection_request_packet(source_id: int, destination_id: int, port: int):
     return Packet(packet_type=PacketType.CONNECTION_REQUEST, source_id=source_id, destination_id=destination_id,

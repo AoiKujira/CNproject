@@ -27,12 +27,31 @@ class Peer:
         self.children = []
         self.is_connected = False
         self.chat_name = None
+        self.got_request = False
+        self.request_message = ''
+        self.command = None
         threading.Thread(target=self.terminal).run()
 
     def terminal(self):
         while True:
-            command = input("$Enter command:")
-            x = re.match(connect_command, command)
+            self.command = input("$Enter command:")
+            
+            if self.got_request:
+                if self.command == 'y' or self.command == 'Y':
+                    x = re.match(request_chat_command, self.request_message)
+                    self.chat_name = input('$Choose a name for yourself:')
+                    data = f'{self.address.id}: {self.chat_name}'
+                    identifiers = self.get_start_chat_identifires((x[2]+x[3]).split())
+                    print(identifiers)
+                    for identifier in identifiers:
+                        if identifier != self.address.id:
+                            packet = make_message_packet(self.address.id, identifier, data)
+                            self.send_message(packet)
+                self.got_request = False
+                self.request_message = ''
+                continue
+
+            x = re.match(connect_command, self.command)
             if x is not None:
                 if self.is_connected:
                     print('Denied\nAlready connected!')
@@ -49,13 +68,13 @@ class Peer:
                 threading.Thread(target=self.listen).start()
                 continue
 
-            x = re.match(show_known_command, command)
+            x = re.match(show_known_command, self.command)
             if x is not None:
                 for known_id in self.known_ids:
                     print(known_id)
                 continue
 
-            x = re.match(route_command, command)
+            x = re.match(route_command, self.command)
             if x is not None:
                 # if int(x[1]) in self.known_ids:
                 packet = Packet(packet_type=PacketType.ROUTING_REQUEST,
@@ -67,7 +86,7 @@ class Peer:
                 #     print('Unknown id')
                 continue
 
-            x = re.match(advertise_command, command)
+            x = re.match(advertise_command, self.command)
             if x is not None:
                 if int(x[1]) in self.known_ids:
                     packet = Packet(packet_type=PacketType.ADVERTISE,
@@ -79,7 +98,7 @@ class Peer:
                     print('Unknown id')
                 continue
 
-            x = re.match(start_chat_command, command)
+            x = re.match(start_chat_command, self.command)
             if x is not None:
                 self.chat_name = x[1]
                 data = f'REQUESTS FOR STARTING CHAT WITH {self.chat_name}: {self.address.id}, ' + x[2]
@@ -163,19 +182,13 @@ class Peer:
         self.send_packet_to_addresses(addresses, packet)
 
     def handle_message_packet_to_self(self, packet: Packet):
-        print(f'received message packet: {packet.data}')
+        print(f'received message packet.data: \"{packet.data}\"')
 
         x = re.match(request_chat_command, packet.data)
-        if x is not None and self.chat_name == None:
-            x = input(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
-            if x == 'y' or x == 'Y':
-                self.chat_name = input('$Choose a name for yourself:')
-                data = f'{self.address.id}: {self.chat_name}'
-                identifiers = self.get_start_chat_identifires((x[2]+x[3]).split())
-                for identifier in identifiers:
-                    if identifier != self.address.id:
-                        packet = make_message_packet(self.address.id, identifier, data)
-                        self.send_message(packet)
+        if x is not None and self.chat_name is None:
+            self.request_message = packet.data
+            self.got_request = True
+            print(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
             return
 
         x = re.match(join_message, packet.data)

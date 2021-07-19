@@ -184,18 +184,18 @@ class Peer:
 
                 x = re.match(start_chat_command, self.command)
                 if x is not None:
-                    self.chat_name = x[1]
-                    identifiers = self.get_start_chat_identifiers(x[2].split())
-                    data = f'CHAT:\nREQUESTS FOR STARTING CHAT WITH {self.chat_name}: {self.address.id}'
-                    for i in identifiers:
-                        data += f', {i}'
+                    if not self.block_chat:
+                        self.chat_name = x[1]
+                        identifiers = self.get_start_chat_identifiers(x[2].split())
+                        data = f'CHAT:\nREQUESTS FOR STARTING CHAT WITH {self.chat_name}: {self.address.id}'
+                        for i in identifiers:
+                            data += f', {i}'
 
-                    for identifier in identifiers:
-                        packet = make_message_packet(self.address.id, identifier, data)
-                        if not self.block_chat:
+                        for identifier in identifiers:
+                            packet = make_message_packet(self.address.id, identifier, data)
                             self.send_message(packet)
-                        else:
-                            print("Chat is disabled. Make sure the firewall allows you to chat")
+                    else:
+                        print("Chat is disabled. Make sure the firewall allows you to chat")
                     continue
 
                 print('command not found!')

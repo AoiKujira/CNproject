@@ -1,5 +1,6 @@
 import re
 import socket as so
+from sre_constants import ASSERT
 import threading
 from typing import Union, List
 
@@ -18,7 +19,7 @@ start_chat_command = 'START CHAT ([\\w\\d._-]+): ((\\d+|-\\d+)(, *(\\d+|-\\d+))*
 request_chat_command = 'REQUESTS FOR STARTING CHAT WITH ([\\w\\d._-]+): (\\d+|-\\d+)((, *(\\d+|-\\d+))+)'
 join_message = '(\\d+|-\\d+): ([\\w\\d._-]+)'
 exit_chat_command = 'EXIT CHAT'
-someone_exit_chat_message = 'EXIT CHAT ((\\d+|-\\d+))'
+someone_exit_chat_message = 'EXIT CHAT (\\d+|-\\d+)'
 chat_message = 'CHAT:\n.*'
 
 class Peer:
@@ -42,8 +43,9 @@ class Peer:
                 self.command = input('$Enter message:')
                 x = re.match(exit_chat_command, self.command)
                 if x is not None:
+                    print(f'sendin exit message to {self.chat_invite_members}')
                     for i in self.chat_invite_members:
-                        packet = make_message_packet(self.address.id, i, f'CHAT:\nEXIT CHAT {self.chat_name}')
+                        packet = make_message_packet(self.address.id, i, f'CHAT:\nEXIT CHAT {self.address.id}')
                         self.send_message(packet)
                     self.chat_invite_members = []
                     self.chat_members = {}
@@ -245,8 +247,8 @@ class Peer:
             x = re.match(someone_exit_chat_message, data)
             if x is not None:
                 print(f'{self.chat_members[int(x[1])]}({x[1]}) left the chat.')
-                if int(x[1]) not in self.chat_members.keys():
-                    self.chat_members.append(int(x[1]))
+                assert int(x[1]) in self.chat_members.keys()
+                del self.chat_members[int(x[1])]
                 return
             
             print(f'${data}')

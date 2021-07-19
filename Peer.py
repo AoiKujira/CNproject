@@ -1,6 +1,7 @@
 import re
 import socket as so
 from sre_constants import ASSERT
+from sys import float_repr_style
 import threading
 from typing import Union, List
 
@@ -21,6 +22,9 @@ join_message = '(\\d+|-\\d+): ([\\w\\d._-]+)'
 exit_chat_command = 'EXIT CHAT'
 someone_exit_chat_message = 'EXIT CHAT (\\d+|-\\d+)'
 chat_message = 'CHAT:\n.*'
+salam_command = 'Salam Salam Sad Ta Salam (\\d+|-\\d+)'
+recived_salam_message = '(\\d+|-\\d+): Salam Salam Sad Ta Salam'
+recived_javab_salam_message = '(\\d+|-\\d+): Hezaro Sisaad Ta Salam'
 
 class Peer:
 
@@ -66,7 +70,7 @@ class Peer:
                     if self.command == 'y' or self.command == 'Y':
                         self.chat_name = input('$Choose a name for yourself:')
                         data = f'CHAT:\n{self.address.id}: {self.chat_name}'
-                        print(f'im telling {self.chat_invite_members}')
+                        # print(f'im telling {self.chat_invite_members}')
                         for identifier in self.chat_invite_members:
                             if identifier != self.address.id:
                                 packet = make_message_packet(self.address.id, identifier, data)
@@ -105,42 +109,51 @@ class Peer:
 
                 x = re.match(route_command, self.command)
                 if x is not None:
-                    # if int(x[1]) in self.known_ids:
+                    # if self.check_destination(int(x[1])):
                     packet = Packet(packet_type=PacketType.ROUTING_REQUEST,
                                     source_id=self.address.id,
                                     destination_id=int(x[1]),
                                     data=None)
                     self.handle_routing_request_packet(packet)
-                    # else:
-                    #     print('Unknown id')
                     continue
 
                 x = re.match(advertise_command, self.command)
                 if x is not None:
-                    if int(x[1]) in self.known_ids:
+                    if self.check_destination(int(x[1])):
                         packet = Packet(packet_type=PacketType.ADVERTISE,
                                         source_id=self.address.id,
                                         destination_id=int(x[1]),
                                         data=str(self.address.id))
                         self.handle_advertise_packet(packet)
-                    else:
-                        print('Unknown id')
                     continue
 
                 x = re.match(start_chat_command, self.command)
                 if x is not None:
                     self.chat_name = x[1]
-                    identifiers = self.get_start_chat_identifires(x[2].split())
+                    self.chat_invite_members = self.get_start_chat_identifires(x[2].split())
                     data = f'CHAT:\nREQUESTS FOR STARTING CHAT WITH {self.chat_name}: {self.address.id}'
-                    for i in identifiers:
+                    for i in self.chat_invite_members:
                         data += f', {i}'
                     
-                    for identifier in identifiers:
+                    for identifier in self.chat_invite_members:
                         packet = make_message_packet(self.address.id, identifier, data)
                         self.send_message(packet)
                     continue
 
+                x = re.match(salam_command, self.command)
+                if x is not None:
+                    if self.check_destination(int(x[1])):
+                        packet = make_salam_packet(self.address.id, int(x[1]))
+                        self.send_message(packet)
+                    continue
+
                 print('command not found!')
+
+    def check_destination(self, destination):
+        if destination != -1 and destination not in self.known_ids:
+            print(f'Unknown destination {destination}')
+            return False
+        return True
 
     def get_start_chat_identifires(self, ids):
         ret = []
@@ -228,13 +241,14 @@ class Peer:
         if re.match(chat_message, packet.data):
             data = encode_message_packet(packet.data)
             x = re.match(request_chat_command, data)
-            if x is not None and self.chat_name is None:
-                self.request_message = data
-                self.got_request = True
-                x = re.match(request_chat_command, self.request_message)
-                self.chat_invite_members = self.get_request_chat_identifires((x[2]+x[3]).split())
-                self.chat_members[int(x[2])] = x[1]
-                print(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
+            if x is not None:
+                if self.chat_name is None:
+                    self.request_message = data
+                    self.got_request = True
+                    x = re.match(request_chat_command, self.request_message)
+                    self.chat_invite_members = self.get_request_chat_identifires((x[2]+x[3]).split())
+                    self.chat_members[int(x[2])] = x[1]
+                    print(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
                 return
 
             x = re.match(join_message, data)
@@ -252,11 +266,21 @@ class Peer:
                 return
             
             print(f'${data}')
+            return
+
+        x = re.match(recived_salam_message, packet.data)
+        if x is not None:
+            if self.check_destination(int(x[1])):
+                packet = make_javab_salam_packet(self.address.id, int(x[1]))
+                self.send_message(packet)
+            return
+
+        x = re.match(recived_javab_salam_message, packet.data)
+        if x is not None:
+            print(f'${packet.data}')
+            return
 
     def handle_advertise_packet(self, packet: Packet):
-        if self.address.id != int(packet.data):
-            self.known_ids.append(int(packet.data))
-
         if packet.destination_id == self.address.id:
             self.handle_advertise_to_self(packet)
             return
@@ -267,6 +291,8 @@ class Peer:
         self.send_packet_to_addresses(addresses, packet)
 
     def handle_advertise_to_self(self, packet: Packet):
+        if int(packet.data) not in self.known_ids:
+            self.known_ids.append(int(packet.data))
         print('received advertise to self packet')
         print(encode_packet(packet))
         print()

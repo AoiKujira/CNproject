@@ -1,3 +1,4 @@
+from re import S
 import Configuration
 import Packet
 from Packet import Packet
@@ -34,6 +35,12 @@ def encode_packet(packet: Packet):
 def encode_message_packet(data: str):
     data = data.split('\n', maxsplit=1)
     return data[1]
+
+def make_salam_packet(source_id: int, destination_id: int):
+    return make_message_packet(source_id, destination_id, f'{source_id}: Salam Salam Sad Ta Salam')
+
+def make_javab_salam_packet(source_id: int, destination_id: int):
+    return make_message_packet(source_id, destination_id, f'{source_id}: Hezaro Sisad Ta Salam')
 
 def make_message_packet(source_id: int, destination_id: int, data:str):
     return Packet(packet_type=PacketType.MESSAGE,

@@ -54,11 +54,6 @@ def make_message_packet(source_id: int, destination_id: int, data:str):
                   data=data,
                   last_node_id=source_id)
 
-def make_connection_request_packet(source_id: int, destination_id: int, port: int):
-    return Packet(packet_type=PacketType.CONNECTION_REQUEST, source_id=source_id, destination_id=destination_id,
-                  data=str(port),
-                  last_node_id=source_id)
-
 
 def parse_advertise_data(data: str):
     return int(data)

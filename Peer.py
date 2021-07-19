@@ -31,7 +31,6 @@ recived_salam_message = '(\\d+|-\\d+): Salam Salam Sad Ta Salam'
 recived_javab_salam_message = '(\\d+|-\\d+): Hezaro Sisad Ta Salam'
 
 
-
 class Peer:
 
     def __init__(self):
@@ -148,7 +147,7 @@ class Peer:
                         print('Unknown id')
                     continue
 
-                x = re.match(fw_command, self.command)
+                x = re.match(fw_command, self.terminal_command)
                 if x is not None:
                     direction, src, dest, p_type, action = x[1], x[2], x[3], int(x[4]), x[5]
                     if src == '*':
@@ -259,7 +258,6 @@ class Peer:
             if not item.is_acceptable(self.address.id, packet):
                 return False
         return True
-
 
     def check_destination(self, destination):
         if destination != -1 and destination not in self.known_ids:

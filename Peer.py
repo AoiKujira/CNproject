@@ -59,7 +59,6 @@ class Peer:
                         packet = self.make_message_packet(i, f'CHAT:\nEXIT CHAT {self.address.id}')
                         self.send_message(packet)
                     self.chat_invite_members = []
-                    self.chat_members = {}
                     self.chat_name = None
                     continue
 
@@ -82,7 +81,6 @@ class Peer:
                                 packet = self.make_message_packet(identifier, data)
                                 self.send_message(packet)
                     else:
-                        self.chat_members = {}
                         self.chat_invite_members = []
                         self.chat_name = None
 
@@ -115,19 +113,17 @@ class Peer:
 
                 x = re.match(route_command, self.terminal_command)
                 if x is not None:
-                    # if self.check_destination(int(x[1])):
-                    packet = Packet(packet_type=PacketType.ROUTING_REQUEST,
-                                    source_id=self.address.id,
-                                    destination_id=int(x[1]),
-                                    data=None,
-                                    last_node_id=self.address.id)
+                    if self.check_destination(int(x[1])):
+                        packet = Packet(packet_type=PacketType.ROUTING_REQUEST,
+                                        source_id=self.address.id,
+                                        destination_id=int(x[1]),
+                                        data=None,
+                                        last_node_id=self.address.id)
                     if self.check_fw_rules(packet):
                         self.handle_routing_request_packet(packet)
                     else:
                         print("Firewall dropped a packet from", packet.source_id, " to", packet.destination_id,
                               " type:", packet.type)
-                    # else:
-                    #     print('Unknown id')
                     continue
 
                 x = re.match(advertise_command, self.terminal_command)
@@ -188,6 +184,7 @@ class Peer:
                 x = re.match(start_chat_command, self.terminal_command)
                 if x is not None:
                     if not self.block_chat:
+                        self.chat_members = {}
                         self.chat_name = x[1]
                         self.chat_invite_members = self.get_start_chat_identifiers(x[2].split())
                         data = f'CHAT:\nREQUESTS FOR STARTING CHAT WITH {self.chat_name}: {self.address.id}'
@@ -382,6 +379,7 @@ class Peer:
                     self.got_request = True
                     x = re.match(request_chat_command, self.request_message)
                     self.chat_invite_members = self.get_request_chat_identifiers((x[2] + x[3]).split())
+                    self.chat_members.clear()
                     self.chat_members[int(x[2])] = x[1]
                     print(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
                 return
@@ -396,8 +394,8 @@ class Peer:
             x = re.match(someone_exit_chat_message, data)
             if x is not None:
                 print(f'{self.chat_members[int(x[1])]}({x[1]}) left the chat.')
-                assert int(x[1]) in self.chat_members.keys()
-                del self.chat_members[int(x[1])]
+                if int(x[1]) in self.chat_members.keys():
+                    del self.chat_members[int(x[1])]
                 return
 
             print(f'${data}')

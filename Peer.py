@@ -55,10 +55,7 @@ class Peer:
                     print(f'sendin exit message to {self.chat_invite_members}')
                     for i in self.chat_invite_members:
                         packet = make_message_packet(self.address.id, i, f'CHAT:\nEXIT CHAT {self.address.id}')
-                        if self.block_chat:
-                            print("Chat is disabled. Make sure the firewall allows you to chat")
-                        else:
-                            self.send_message(packet)
+                        self.send_message(packet)
                     self.chat_invite_members = []
                     self.chat_members = {}
                     self.chat_name = None
@@ -170,9 +167,17 @@ class Peer:
                 if x is not None:
                     action = x[1]
                     if action == FwAction.DROP.value:
-                        self.block_chat = True
+                        if not self.block_chat:
+                            self.block_chat = True
+                            print("The rule added")
+                        else:
+                            print("The rule already exists")
                     elif action == FwAction.ACCEPT.value:
-                        self.block_chat = False
+                        if self.block_chat:
+                            self.block_chat = False
+                            print("The rule added")
+                        else:
+                            print("The rule already exists")
                     else:
                         print("Valid actions: ACCEPT / DROP")
                     continue
@@ -187,11 +192,10 @@ class Peer:
 
                     for identifier in identifiers:
                         packet = make_message_packet(self.address.id, identifier, data)
-                        if self.check_fw_rules(packet):
+                        if not self.block_chat:
                             self.send_message(packet)
                         else:
-                            print("Firewall dropped a packet from", packet.source_id, " to", packet.destination_id,
-                                  " type:", packet.type)
+                            print("Chat is disabled. Make sure the firewall allows you to chat")
                     continue
 
                 print('command not found!')

@@ -31,7 +31,6 @@ recived_salam_message = '(\\d+|-\\d+): Salam Salam Sad Ta Salam'
 recived_javab_salam_message = '(\\d+|-\\d+): Hezaro Sisad Ta Salam'
 
 
-
 class Peer:
 
     def __init__(self):
@@ -260,7 +259,6 @@ class Peer:
                 return False
         return True
 
-
     def check_destination(self, destination):
         if destination != -1 and destination not in self.known_ids:
             print(f'Unknown destination {destination}')
@@ -304,7 +302,7 @@ class Peer:
     def connect_to_network(self, port: int, identifier: int):
         address = Address(MANAGER_HOST, port, identifier)
         peer_connector = PeerConnector()
-        self.parent_address = peer_connector.get_id(address)
+        self.parent_address = peer_connector.negotiate_address_with_manager(address)
         self.address = address
 
     def listen(self):

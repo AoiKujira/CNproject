@@ -38,14 +38,14 @@ class Peer:
         self.got_request = False
         self.chat_members = {}
         self.chat_invite_members = []
-        self.command = None
+        self.terminal_command = None
         threading.Thread(target=self.terminal).run()
 
     def terminal(self):
         while True:
             if self.chat_name is not None:
-                self.command = input('$Enter message:')
-                x = re.match(exit_chat_command, self.command)
+                self.terminal_command = input('$Enter message:')
+                x = re.match(exit_chat_command, self.terminal_command)
                 if x is not None:
                     print(f'sendin exit message to {self.chat_invite_members}')
                     for i in self.chat_invite_members:
@@ -57,17 +57,17 @@ class Peer:
                     continue
 
                 for i in self.chat_members.keys():
-                    packet = make_message_packet(self.address.id, i, f'CHAT:\n{self.chat_name}: {self.command}')
+                    packet = make_message_packet(self.address.id, i, f'CHAT:\n{self.chat_name}: {self.terminal_command}')
                     self.send_message(packet)
             else:
-                self.command = input("$Enter command:")
+                self.terminal_command = input("$Enter command:")
                 
                 if self.got_request:
                     for i in self.chat_invite_members:
                         if i not in self.known_ids:
                             self.known_ids.append(i)
 
-                    if self.command == 'y' or self.command == 'Y':
+                    if self.terminal_command == 'y' or self.terminal_command == 'Y':
                         self.chat_name = input('$Choose a name for yourself:')
                         data = f'CHAT:\n{self.address.id}: {self.chat_name}'
                         # print(f'im telling {self.chat_invite_members}')
@@ -84,7 +84,7 @@ class Peer:
                     self.request_message = ''
                     continue
 
-                x = re.match(connect_command, self.command)
+                x = re.match(connect_command, self.terminal_command)
                 if x is not None:
                     if self.is_connected:
                         print('Denied\nAlready connected!')
@@ -101,13 +101,13 @@ class Peer:
                     threading.Thread(target=self.listen).start()
                     continue
 
-                x = re.match(show_known_command, self.command)
+                x = re.match(show_known_command, self.terminal_command)
                 if x is not None:
                     for known_id in self.known_ids:
                         print(known_id)
                     continue
 
-                x = re.match(route_command, self.command)
+                x = re.match(route_command, self.terminal_command)
                 if x is not None:
                     # if self.check_destination(int(x[1])):
                     packet = Packet(packet_type=PacketType.ROUTING_REQUEST,
@@ -117,7 +117,7 @@ class Peer:
                     self.handle_routing_request_packet(packet)
                     continue
 
-                x = re.match(advertise_command, self.command)
+                x = re.match(advertise_command, self.terminal_command)
                 if x is not None:
                     if self.check_destination(int(x[1])):
                         packet = Packet(packet_type=PacketType.ADVERTISE,
@@ -127,7 +127,7 @@ class Peer:
                         self.handle_advertise_packet(packet)
                     continue
 
-                x = re.match(start_chat_command, self.command)
+                x = re.match(start_chat_command, self.terminal_command)
                 if x is not None:
                     self.chat_name = x[1]
                     self.chat_invite_members = self.get_start_chat_identifires(x[2].split())
@@ -140,7 +140,7 @@ class Peer:
                         self.send_message(packet)
                     continue
 
-                x = re.match(salam_command, self.command)
+                x = re.match(salam_command, self.terminal_command)
                 if x is not None:
                     if self.check_destination(int(x[1])):
                         packet = make_salam_packet(self.address.id, int(x[1]))

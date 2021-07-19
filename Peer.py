@@ -11,6 +11,10 @@ from PeerConnector import PeerConnector
 from Util import *
 from Util import encode_packet
 
+from FwRule import *
+from FwDirection import *
+from FwAction import *
+
 connect_command = 'CONNECT AS (\\d+|-\\d+) ON PORT (\\d+|-\\d+)'
 show_known_command = 'SHOW KNOWN CLIENTS'
 route_command = 'ROUTE (\\d+|-\\d+)'
@@ -20,7 +24,10 @@ request_chat_command = 'REQUESTS FOR STARTING CHAT WITH ([\\w\\d._-]+): (\\d+|-\
 join_message = '(\\d+|-\\d+): ([\\w\\d._-]+)'
 exit_chat_command = 'EXIT CHAT'
 someone_exit_chat_message = 'EXIT CHAT (\\d+|-\\d+)'
+fw_command = 'FILTER (\\w+) (\\d+|[*]) (\\d+|[*]) (\\d+) (\\w+)'
+fw_chat_command = 'FW CHAT (\\w+)'
 chat_message = 'CHAT:\n.*'
+
 
 class Peer:
 
@@ -35,6 +42,8 @@ class Peer:
         self.chat_members = {}
         self.chat_invite_members = []
         self.command = None
+        self.fw_rules = []
+        self.block_chat = False
         threading.Thread(target=self.terminal).run()
 
     def terminal(self):
@@ -46,7 +55,10 @@ class Peer:
                     print(f'sendin exit message to {self.chat_invite_members}')
                     for i in self.chat_invite_members:
                         packet = make_message_packet(self.address.id, i, f'CHAT:\nEXIT CHAT {self.address.id}')
-                        self.send_message(packet)
+                        if self.block_chat:
+                            print("Chat is disabled. Make sure the firewall allows you to chat")
+                        else:
+                            self.send_message(packet)
                     self.chat_invite_members = []
                     self.chat_members = {}
                     self.chat_name = None
@@ -57,7 +69,7 @@ class Peer:
                     self.send_message(packet)
             else:
                 self.command = input("$Enter command:")
-                
+
                 if self.got_request:
                     for i in self.chat_invite_members:
                         if i not in self.known_ids:
@@ -110,7 +122,11 @@ class Peer:
                                     source_id=self.address.id,
                                     destination_id=int(x[1]),
                                     data=None)
-                    self.handle_routing_request_packet(packet)
+                    if self.check_fw_rules(packet):
+                        self.handle_routing_request_packet(packet)
+                    else:
+                        print("Firewall dropped a packet from", packet.source_id, " to", packet.destination_id,
+                              " type:", packet.type)
                     # else:
                     #     print('Unknown id')
                     continue
@@ -122,27 +138,114 @@ class Peer:
                                         source_id=self.address.id,
                                         destination_id=int(x[1]),
                                         data=str(self.address.id))
-                        self.handle_advertise_packet(packet)
+                        if self.check_fw_rules(packet):
+                            self.handle_advertise_packet(packet)
+                        else:
+                            print("Firewall dropped a packet from", packet.source_id, " to", packet.destination_id,
+                                  " type:", packet.type)
                     else:
                         print('Unknown id')
+                    continue
+
+                x = re.match(fw_command, self.command)
+                if x is not None:
+                    direction, src, dest, p_type, action = x[1], x[2], x[3], int(x[4]), x[5]
+                    if src == '*':
+                        src = -1
+                    if dest == '*':
+                        dest = -1
+                    src, dest = int(src), int(dest)
+                    if self.validate_fw_command(direction, p_type, action):
+                        rule = FwRule(FwDirection(direction), src, dest, PacketType(p_type))
+                        if self.is_logically_valid_fw_rule(rule):
+                            if self.apply_fw_rule(rule, FwAction(action)):
+                                print("The rule added")
+                            else:
+                                print("The rule already exists")
+                        else:
+                            print("Your rule's logic sucks idiot!")
+                    continue
+
+                x = re.match(fw_chat_command, self.command)
+                if x is not None:
+                    action = x[1]
+                    if action == FwAction.DROP.value:
+                        self.block_chat = True
+                    elif action == FwAction.ACCEPT.value:
+                        self.block_chat = False
+                    else:
+                        print("Valid actions: ACCEPT / DROP")
                     continue
 
                 x = re.match(start_chat_command, self.command)
                 if x is not None:
                     self.chat_name = x[1]
-                    identifiers = self.get_start_chat_identifires(x[2].split())
+                    identifiers = self.get_start_chat_identifiers(x[2].split())
                     data = f'CHAT:\nREQUESTS FOR STARTING CHAT WITH {self.chat_name}: {self.address.id}'
                     for i in identifiers:
                         data += f', {i}'
-                    
+
                     for identifier in identifiers:
                         packet = make_message_packet(self.address.id, identifier, data)
-                        self.send_message(packet)
+                        if self.check_fw_rules(packet):
+                            self.send_message(packet)
+                        else:
+                            print("Firewall dropped a packet from", packet.source_id, " to", packet.destination_id,
+                                  " type:", packet.type)
                     continue
 
                 print('command not found!')
 
-    def get_start_chat_identifires(self, ids):
+    @staticmethod
+    def validate_fw_command(direction: str, p_type: int, action: str):
+        if direction in [direc.value for direc in FwDirection]:
+            if p_type != PacketType.FIREWALL_DROP.value and p_type in [pt.value for pt in PacketType]:
+                if action in [ac.value for ac in FwAction]:
+                    return True
+                else:
+                    print("Valid actions: ACCEPT / DROP")
+            else:
+                print("Valid actions: 10 / 11 / 20 / 21 / 31 / 41")
+        else:
+            print("Valid directions: INPUT / OUTPUT / FORWARD")
+        return False
+
+    def apply_fw_rule(self, new_rule: FwRule, action: FwAction):
+        if new_rule in self.fw_rules:
+            if action == FwAction.ACCEPT:
+                self.fw_rules.remove(new_rule)
+                return True
+        else:
+            if action == FwAction.DROP:
+                self.fw_rules.append(new_rule)
+                return True
+            else:
+                if new_rule.src == -1:
+                    for rule in self.fw_rules:
+                        if new_rule.is_eq_stronger(src_wise=True, rule=rule):
+                            self.fw_rules.remove(rule)
+                            return True
+                if new_rule.dest == -1:
+                    for rule in self.fw_rules:
+                        if new_rule.is_eq_stronger(src_wise=False, rule=rule):
+                            self.fw_rules.remove(rule)
+                            return True
+        return False
+
+    def is_logically_valid_fw_rule(self, rule: FwRule):
+        if (rule.dir == FwDirection.INPUT or rule.dir == FwDirection.FORWARD) and rule.src == self.address.id:
+            return False
+        if (rule.dir == FwDirection.OUTPUT or rule.dir == FwDirection.FORWARD) and rule.dest == self.address.id:
+            return False
+        return True
+
+    def check_fw_rules(self, packet: Packet):
+        for item in self.fw_rules:
+            if not item.is_acceptable(self.address.id, packet):
+                return False
+        return True
+
+    def get_start_chat_identifiers(self, ids):
         ret = []
         for i in ids:
             if i == ',':
@@ -154,7 +257,7 @@ class Peer:
                 ret.append(i)
         return ret
 
-    def get_request_chat_identifires(self, ids):
+    def get_request_chat_identifiers(self, ids):
         ret = []
         for i in ids:
             if i == ',':
@@ -194,7 +297,17 @@ class Peer:
     def handle_socket(self, socket: so.socket):
         message = socket.recv(BUFFER_SIZE).decode(ENCODING)
         print(f'got packet: {{\n{message}\n}}')
-        packet = decode_packet(message); self.handle_message(packet)
+        packet = decode_packet(message)
+        if self.check_fw_rules(packet):
+            self.handle_message(packet)
+        else:
+            print("Firewall dropped a packet from", packet.source_id, " to", packet.destination_id,
+                  " type:", packet.type)
+            packet = Packet(packet_type=PacketType.FIREWALL_DROP,
+                            source_id=self.address.id,
+                            destination_id=packet.source_id,
+                            data='Firewall dropped your packet at node ' + str(self.address.id))
+            self.handle_message(packet)
         socket.close()
 
     def handle_message(self, packet: Packet):
@@ -212,12 +325,23 @@ class Peer:
             self.handle_destination_not_found_message(packet)
         elif packet.type == PacketType.CONNECTION_REQUEST:
             self.handle_connection_request_packet(packet)
+        elif packet.type == PacketType.FIREWALL_DROP:
+            self.handle_firewall_packet(packet)
         else:
             raise Exception("NOT SUPPORTED PACKET TYPE")
 
     def handle_message_packet(self, packet: Packet):
         if self.address.id == packet.destination_id:
             self.handle_message_packet_to_self(packet)
+            return
+
+        addresses = self.get_routing_request_destination_for_packet(packet)
+        assert addresses is not None
+        self.send_packet_to_addresses(addresses, packet)
+
+    def handle_firewall_packet(self, packet: Packet):
+        if self.address.id == packet.destination_id:
+            print(packet.data)
             return
 
         addresses = self.get_routing_request_destination_for_packet(packet)
@@ -232,7 +356,7 @@ class Peer:
                 self.request_message = data
                 self.got_request = True
                 x = re.match(request_chat_command, self.request_message)
-                self.chat_invite_members = self.get_request_chat_identifires((x[2]+x[3]).split())
+                self.chat_invite_members = self.get_request_chat_identifiers((x[2] + x[3]).split())
                 self.chat_members[int(x[2])] = x[1]
                 print(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
                 return
@@ -243,14 +367,14 @@ class Peer:
                 if int(x[1]) not in self.chat_members.keys():
                     self.chat_members[int(x[1])] = x[2]
                 return
-            
+
             x = re.match(someone_exit_chat_message, data)
             if x is not None:
                 print(f'{self.chat_members[int(x[1])]}({x[1]}) left the chat.')
                 assert int(x[1]) in self.chat_members.keys()
                 del self.chat_members[int(x[1])]
                 return
-            
+
             print(f'${data}')
 
     def handle_advertise_packet(self, packet: Packet):
@@ -400,6 +524,7 @@ class Peer:
             self.send_destination_not_found_message(packet)
             return
         self.send_packet_to_addresses(addresses, packet)
+
 
 if __name__ == '__main__':
     peer = Peer()

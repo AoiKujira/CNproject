@@ -166,7 +166,7 @@ class Peer:
                             print("Your rule's logic sucks idiot!")
                     continue
 
-                x = re.match(fw_chat_command, self.command)
+                x = re.match(fw_chat_command, self.terminal_command)
                 if x is not None:
                     action = x[1]
                     if action == FwAction.DROP.value:
@@ -189,7 +189,7 @@ class Peer:
                 if x is not None:
                     if not self.block_chat:
                         self.chat_name = x[1]
-                        self.chat_invite_members = self.get_start_chat_identifires(x[2].split())
+                        self.chat_invite_members = self.get_start_chat_identifiers(x[2].split())
                         data = f'CHAT:\nREQUESTS FOR STARTING CHAT WITH {self.chat_name}: {self.address.id}'
                         for i in self.chat_invite_members:
                             data += f', {i}'
@@ -326,7 +326,8 @@ class Peer:
             packet = Packet(packet_type=PacketType.FIREWALL_DROP,
                             source_id=self.address.id,
                             destination_id=packet.source_id,
-                            data='Firewall dropped your packet at node ' + str(self.address.id))
+                            data='Firewall dropped your packet at node ' + str(self.address.id),
+                            last_node_id=self.address.id)
             self.handle_message(packet)
         socket.close()
 
@@ -350,6 +351,15 @@ class Peer:
         else:
             raise Exception("NOT SUPPORTED PACKET TYPE")
 
+    def handle_firewall_packet(self, packet: Packet):
+        if self.address.id == packet.destination_id:
+            print(packet.data)
+            return
+
+        addresses = self.get_routing_request_destination_for_packet(packet)
+        assert addresses is not None
+        self.send_packet_to_addresses(addresses, packet)
+
     def handle_message_packet(self, packet: Packet):
         if self.is_packet_for_us(packet):
             self.handle_message_packet_to_self(packet)
@@ -368,7 +378,7 @@ class Peer:
                     self.request_message = data
                     self.got_request = True
                     x = re.match(request_chat_command, self.request_message)
-                    self.chat_invite_members = self.get_request_chat_identifires((x[2] + x[3]).split())
+                    self.chat_invite_members = self.get_request_chat_identifiers((x[2] + x[3]).split())
                     self.chat_members[int(x[2])] = x[1]
                     print(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
                 return

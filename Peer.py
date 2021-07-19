@@ -21,10 +21,10 @@ request_chat_command = 'REQUESTS FOR STARTING CHAT WITH ([\\w\\d._-]+): (\\d+|-\
 join_message = '(\\d+|-\\d+): ([\\w\\d._-]+)'
 exit_chat_command = 'EXIT CHAT'
 someone_exit_chat_message = 'EXIT CHAT (\\d+|-\\d+)'
-chat_message = 'CHAT:\n.*'
+chat_message = 'CHAT:.*'
 salam_command = 'Salam Salam Sad Ta Salam (\\d+|-\\d+)'
 recived_salam_message = '(\\d+|-\\d+): Salam Salam Sad Ta Salam'
-recived_javab_salam_message = '(\\d+|-\\d+): Hezaro Sisaad Ta Salam'
+recived_javab_salam_message = '(\\d+|-\\d+): Hezaro Sisad Ta Salam'
 
 class Peer:
 
@@ -270,6 +270,7 @@ class Peer:
 
         x = re.match(recived_salam_message, packet.data)
         if x is not None:
+            print(f'${packet.data}')
             if self.check_destination(int(x[1])):
                 packet = make_javab_salam_packet(self.address.id, int(x[1]))
                 self.send_message(packet)

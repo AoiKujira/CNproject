@@ -370,6 +370,9 @@ class Peer:
             self.send_packet_to_addresses(addresses, packet)
 
     def handle_message_packet_to_self(self, packet: Packet):
+        if packet.source_id not in self.known_ids:
+            self.known_ids.append(packet.source_id)
+
         if re.match(chat_message, packet.data):
             data = encode_message_packet(packet.data)
             x = re.match(request_chat_command, data)
@@ -424,8 +427,8 @@ class Peer:
             self.send_packet_to_addresses(addresses, packet)
 
     def handle_advertise_to_self(self, packet: Packet):
-        if int(packet.data) not in self.known_ids:
-            self.known_ids.append(int(packet.data))
+        if packet.source_id not in self.known_ids:
+            self.known_ids.append(packet.source_id)
         print('received advertise to self packet')
         print(encode_packet(packet))
         print()
@@ -491,6 +494,8 @@ class Peer:
         return None
 
     def handle_routing_request_to_self(self, packet: Packet):
+        if packet.source_id not in self.known_ids:
+            self.known_ids.append(packet.source_id)
         response_packet = self.make_routing_response_packet(packet.source_id)
         addresses = self.get_routing_request_destination_for_packet(response_packet)
         self.send_packet_to_addresses(addresses, response_packet)
@@ -505,6 +510,8 @@ class Peer:
             self.send_packet_to_addresses(addresses, packet)
 
     def handle_routing_response_to_self(self, packet: Packet):
+        if packet.source_id not in self.known_ids:
+            self.known_ids.append(packet.source_id)
         self.append_current_node_to_routing_response_message(packet)
         print(packet.data)
 

@@ -147,7 +147,7 @@ class Peer:
                         print('Unknown id')
                     continue
 
-                x = re.match(fw_command, self.command)
+                x = re.match(fw_command, self.terminal_command)
                 if x is not None:
                     direction, src, dest, p_type, action = x[1], x[2], x[3], int(x[4]), x[5]
                     if src == '*':
@@ -302,7 +302,7 @@ class Peer:
     def connect_to_network(self, port: int, identifier: int):
         address = Address(MANAGER_HOST, port, identifier)
         peer_connector = PeerConnector()
-        self.parent_address = peer_connector.negotiate_address_with_manager(address)
+        self.parent_address = peer_connector.get_id(address)
         self.address = address
 
     def listen(self):

@@ -31,7 +31,7 @@ class PeerConnector:
         else:
             raise Exception("failed")
 
-    def negotiate_address_with_manager(self, address: Address) -> Address:
+    def get_id(self, address: Address) -> Address:
         self.socket.connect((MANAGER_HOST, MANAGER_PORT))
         try:
             return self.handle(address)

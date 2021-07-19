@@ -395,7 +395,7 @@ class Peer:
 
     def send_packet_to_address(self, address: Address, packet: Packet):
         socket = so.socket(so.AF_INET, type=so.SOCK_STREAM)
-        packet.destination_id = self.address.id
+        packet.last_node_id = self.address.id
         print(f'sending packet: {{\n{encode_packet(packet)}\n}} to {address.id} on port {address.port}')
         socket.connect((address.host, address.port))
         m = encode_packet(packet)

@@ -341,7 +341,7 @@ class Peer:
     def get_routing_request_destination_for_packet(self, packet: Packet) -> Union[List[Address], None]:
         print(" finding destination to ", packet.destination_id)
         assert packet.last_node_id is not None
-        if packet.destination_id == -1:
+        if packet.destination_id == ALL_IDS:
             addresses = [child.address for child in self.children if child.address.id != packet.last_node_id]
             if self.parent_address.id != NO_PARENT_ID and self.parent_address.id != packet.last_node_id:
                 addresses.append(self.parent_address)
@@ -420,6 +420,7 @@ class Peer:
 
     def send_packet_to_address(self, address: Address, packet: Packet):
         socket = so.socket(so.AF_INET, type=so.SOCK_STREAM)
+        packet.destination_id = self.address.id
         print(f'sending packet: {{\n{encode_packet(packet)}\n}} to {address.id} on port {address.port}')
         socket.connect((address.host, address.port))
         m = encode_packet(packet)

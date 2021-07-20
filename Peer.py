@@ -374,14 +374,18 @@ class Peer:
             data = encode_message_packet(packet.data)
             x = re.match(request_chat_command, data)
             if x is not None:
-                if self.chat_name is None:
-                    self.request_message = data
-                    self.got_request = True
-                    x = re.match(request_chat_command, self.request_message)
-                    self.chat_invite_members = self.get_request_chat_identifiers((x[2] + x[3]).split())
-                    self.chat_members.clear()
-                    self.chat_members[int(x[2])] = x[1]
-                    print(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
+                if not self.block_chat:
+                    if self.chat_name is None:
+                        self.request_message = data
+                        self.got_request = True
+                        x = re.match(request_chat_command, self.request_message)
+                        self.chat_invite_members = self.get_request_chat_identifiers((x[2] + x[3]).split())
+                        self.chat_members.clear()
+                        self.chat_members[int(x[2])] = x[1]
+                        print(f'{x[1]} with id {x[2]} has asked you to join a chat. Would you like to join?[Y/N]')
+                else:
+                    print("The firewall prevents joining the chat")
+
                 return
 
             x = re.match(join_message, data)
@@ -421,7 +425,6 @@ class Peer:
         if self.should_forward_packet(packet):
             addresses = self.get_routing_request_destination_for_packet(packet)
             assert addresses is not None
-            packet.source_id = self.address.id
             self.send_packet_to_addresses(addresses, packet)
 
     def handle_advertise_to_self(self, packet: Packet):
